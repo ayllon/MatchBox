@@ -1,5 +1,5 @@
 import itertools
-from typing import Set, FrozenSet, Iterable
+from typing import Set, FrozenSet, Iterable, Mapping
 
 import numpy as np
 from scipy.spatial.ckdtree import cKDTree as KDTree
@@ -153,3 +153,49 @@ def node_to_ind(ind_set: Iterable[Ind]) -> Ind:
         lhs=AttributeSet(ind.lhs.relation_name, lhs_attr, ind.lhs.relation),
         rhs=AttributeSet(ind.rhs.relation_name, rhs_attr, ind.rhs.relation)
     )
+
+
+def unique_inds(inds: Iterable[Ind]) -> Set[Ind]:
+    """
+    Obtain the set of unique INDs *not* specialized by any other IND
+
+    Parameters
+    ----------
+    inds :
+        An Iterable of Ind
+
+    Returns
+    -------
+    out : set
+        A set of unique non specialized IND
+    """
+    inds = list(inds)
+    uinds = [i.get_all_unary() for i in inds]
+
+    unique = set()
+    for i in range(len(inds)):
+        ui = uinds[i]
+        add = True
+        for j in range(len(inds)):
+            uj = uinds[j]
+            if i != j and uj.issuperset(ui):
+                add = False
+                break
+        if add:
+            unique.add(inds[i])
+    return unique
+
+
+def find_max_arity_per_pair(inds: Iterable[Ind]) -> Mapping[str, int]:
+    """
+
+    """
+    max_arity = dict()
+    for ind in inds:
+        key = ind.lhs.relation_name + '_' + ind.rhs.relation_name
+        if key not in max_arity:
+            max_arity[key] = ind
+            continue
+        if max_arity[key].arity < ind.arity:
+            max_arity[key] = ind
+    return max_arity

@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Iterable, FrozenSet
 
 import numpy as np
@@ -13,7 +14,7 @@ class Edge(FrozenSet):
     A frozenset of vertex with the 'valid' attribute
     """
 
-    def __init__(self, args, valid=False, confidence=0):
+    def __init__(self, args, valid=False, confidence: float = 0):
         super().__init__()
         self.set = frozenset(args)
         self.valid = valid
@@ -208,3 +209,17 @@ def is_quasi_clique(G: Graph, S: FrozenSet[Ind], lambd: float, gamma: float) -> 
     min_degree = h.ppf(lambd)
 
     return all(map(lambda v: v >= min_degree, node_degree.values()))
+
+
+def generate_graph(ind: Iterable[Ind], arity=None):
+    if not arity:
+        arity = max(map(lambda i: i.arity, ind))
+    nodes = set()
+    edges = set()
+    for i in ind:
+        uind = i.get_all_unary()
+        if len(uind) >= arity:
+            edges.add(Edge(uind, valid=True, confidence=i.confidence))
+            nodes.update(uind)
+    graph = Graph(nodes, edges)
+    return graph, arity

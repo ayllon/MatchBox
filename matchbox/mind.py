@@ -73,7 +73,7 @@ class Mind(object):
                 else:
                     _logger.debug(f'Dropping {candidate} because the p-value {p} < {self.__alpha}')
 
-            _logger.info('%d-ind: %d positive', arity, len(next_ind))
+            _logger.info('%d-ind: %d positive, %d negative', arity, len(next_ind), len(candidates) - len(next_ind))
             all_satisfied.update(next_ind)
             ind = next_ind
 
