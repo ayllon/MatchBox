@@ -1,10 +1,10 @@
 import itertools
-from typing import Sized, FrozenSet
+from typing import FrozenSet, Set
 
-from matchbox.ind import Ind
+from .ind import Ind
 
 
-def gen_next(ind: Sized) -> FrozenSet[Ind]:
+def gen_next(ind: Set) -> FrozenSet[Ind]:
     """
     From De Marchi 2003
 
@@ -21,7 +21,7 @@ def gen_next(ind: Sized) -> FrozenSet[Ind]:
 
     # Empty input, noop
     if not len(ind):
-        return temp_results
+        return frozenset()
 
     # Populate
     arity = next(iter(ind)).arity

@@ -1,11 +1,18 @@
 import itertools
-from typing import Set
+from typing import Set, FrozenSet, Iterable
 
 import numpy as np
 from scipy.spatial.ckdtree import cKDTree as KDTree
 
-from matchbox import AttributeSet
-from matchbox.util import combine_hash
+from .attributeset import AttributeSet
+
+
+def combine_hash(lhash: int, rhash: int) -> int:
+    """
+    As boost::hash_combine
+    """
+    lhash ^= rhash + 0x9e3779b9 + (lhash << 6) + (rhash >> 2)
+    return lhash
 
 
 class Ind(object):
@@ -83,7 +90,9 @@ class Ind(object):
         return self._hash
 
     def __str__(self) -> str:
-        return ', '.join(map(' ⊆ '.join, zip(map(str, self.lhs.attr_names), map(str, self.rhs.attr_names))))# + f' {self.confidence:.2f}'
+        lhs_attr = ', '.join(self._lhs_attrs)
+        rhs_attr = ', '.join(self._rhs_attrs)
+        return f'{self.lhs.relation_name}::({lhs_attr}) ⊆ {self.rhs.relation_name}::({rhs_attr})'
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -110,3 +119,37 @@ class Ind(object):
         sample = self.lhs.relation.sample(n=n)
         dist, idx = tree.query(sample[list(self.lhs.attr_names)])
         return dist, sample.join(self.rhs.relation, on=idx, lsuffix='_lhs', rsuffix='_rhs')
+
+
+def is_satisfied(ind: FrozenSet[Ind], positive_border: Iterable[FrozenSet[Ind]]) -> bool:
+    """
+    Returns
+    -------
+    True if the inclusion dependency ind is satisfied by the positive border
+
+    Examples
+    --------
+    If the positive border contains (R.{A, B, C} ⊆ S.{A, B, C}), then this function will return true
+    for (R.{A, B} ⊆ S.{A, B}), but False for (R.{A, D} ⊆ S.{A, D})
+    """
+    for border in positive_border:
+        if border.issuperset(ind):
+            return True
+    return False
+
+
+def node_to_ind(ind_set: Iterable[Ind]) -> Ind:
+    """
+    Transform a n-ary inclusion dependency modeled as a set of unary ind, to a proper n-ind
+    """
+    lhs_attr = []
+    rhs_attr = []
+    ind = None
+    for ind in ind_set:
+        lhs_attr.extend(ind.lhs.attr_names)
+        rhs_attr.extend(ind.rhs.attr_names)
+    assert len(lhs_attr), ind_set
+    return Ind(
+        lhs=AttributeSet(ind.lhs.relation_name, lhs_attr, ind.lhs.relation),
+        rhs=AttributeSet(ind.rhs.relation_name, rhs_attr, ind.rhs.relation)
+    )

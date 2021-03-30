@@ -7,7 +7,7 @@ from scipy.stats import ks_2samp
 
 from .attributeset import AttributeSet
 from .ind import Ind
-from .util import NoopListener
+from .util.nooplistener import NoopListener
 
 _logger = logging.getLogger(__name__)
 

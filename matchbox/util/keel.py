@@ -1,14 +1,15 @@
-import numpy as np
 import os
-import pandas
 
+import numpy as np
+import pandas
 
 STRTYPE_TO_TYPE = dict(
     integer=np.int,
     real=np.float
 )
 
-def parse_keel_file(path, ncols=None):
+
+def parse_keel_file(path: str, ncols: int = None):
     """
     Read a Keel datafile
     """
@@ -16,7 +17,7 @@ def parse_keel_file(path, ncols=None):
         column_names = []
         column_types = {}
         relation_name = os.path.basename(path)
-        
+
         line = fd.readline().strip()
         while line != '@data':
             fields = line.split(maxsplit=1)
@@ -26,7 +27,7 @@ def parse_keel_file(path, ncols=None):
                 column_types[column_name] = STRTYPE_TO_TYPE[column_type]
             elif fields[0] in ['@inputs', '@outputs']:
                 column_names.extend([f.strip() for f in fields[1].split(',')])
-            
+
             line = fd.readline().strip()
         if not ncols:
             ncols = len(column_names)

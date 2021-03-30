@@ -2,11 +2,11 @@ import logging
 from typing import Callable, Set, Type
 
 import numpy as np
-
-from matchbox.tests import knn_test
 from matchbox.ind import Ind
-from matchbox.util import NoopListener
+from matchbox.tests import knn_test
+
 from .gennext import gen_next
+from .util.nooplistener import NoopListener
 
 _logger = logging.getLogger(__name__)
 
@@ -27,7 +27,8 @@ class Mind(object):
         self.__test = test
         self.__test_args = test_args if test_args else dict()
 
-    def __call__(self, ind: Set[Ind], stop: int = np.inf, progress_listener: Type = NoopListener) -> Set[Ind]:
+    def __call__(self, ind: Set[Ind], stop: int = np.inf,
+                 progress_listener: Type = NoopListener) -> Set[Ind]:
         """
         Run the MIND algorithm
 

@@ -3,9 +3,8 @@ from typing import Callable, FrozenSet
 
 import numpy as np
 
-from matchbox.ind import Ind
-from matchbox.tests import knn_test
-from matchbox.zigzag import node_to_ind
+from .ind import Ind, node_to_ind
+from .tests import knn_test
 
 _logger = logging.getLogger(__name__)
 

@@ -10,9 +10,9 @@ import itertools
 import logging
 from typing import Set, FrozenSet, Tuple, Callable, Iterable
 
-from matchbox import AttributeSet, Mind
-from matchbox.ind import Ind
-from matchbox.tests import knn_test
+from .ind import Ind, node_to_ind
+from .mind import Mind
+from .tests import knn_test
 
 _logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ def calculate_optimistic_border(unary: FrozenSet[Ind], negative: Iterable[Ind], 
     ----------
     unary : set of unary inclusion dependencies
     negative : set on n-ary inclusion dependencies known to *not* be satisfied
+    n: arity
 
     Returns
     -------
@@ -66,7 +67,7 @@ def calculate_optimistic_border(unary: FrozenSet[Ind], negative: Iterable[Ind], 
                     if not any(map(l.issuperset, S)):
                         add_to_s.add(frozenset(l))
         S.update(add_to_s)
-    return frozenset(map(unary.difference, filter(lambda s: len(s) <= N-n, S)))
+    return frozenset(map(unary.difference, filter(lambda s: len(s) <= N - n, S)))
 
 
 def get_candidates_next(pessimistic: Set[FrozenSet[Ind]], n: int) -> Set[FrozenSet[Ind]]:
@@ -129,39 +130,6 @@ def remove_specializations(border: Set[FrozenSet[Ind]]) -> Set[FrozenSet[Ind]]:
         if is_specialization(i1, i2) and i1 in result:
             result.remove(i1)
     return result
-
-
-def is_satisfied(ind: FrozenSet[Ind], positive_border: Iterable[FrozenSet[Ind]]) -> bool:
-    """
-    Returns
-    -------
-    True if the inclusion dependency ind is satisfied by the positive border
-
-    Examples
-    --------
-    If the positive border contains (R.{A, B, C} ⊆ S.{A, B, C}), then this function will return true
-    for (R.{A, B} ⊆ S.{A, B}), but False for (R.{A, D} ⊆ S.{A, D})
-    """
-    for border in positive_border:
-        if border.issuperset(ind):
-            return True
-    return False
-
-
-def node_to_ind(ind_set: Iterable[Ind]) -> Ind:
-    """
-    Transform a n-ary inclusion dependency modeled as a set of unary ind, to a proper n-ind
-    """
-    lhs_attr = []
-    rhs_attr = []
-    for ind in ind_set:
-        lhs_attr.extend(ind.lhs.attr_names)
-        rhs_attr.extend(ind.rhs.attr_names)
-    assert len(lhs_attr), ind_set
-    return Ind(
-        lhs=AttributeSet(ind.lhs.relation_name, lhs_attr, ind.lhs.relation),
-        rhs=AttributeSet(ind.rhs.relation_name, rhs_attr, ind.rhs.relation)
-    )
 
 
 def get_unary_ind(ind: Set[Ind]) -> FrozenSet[Ind]:

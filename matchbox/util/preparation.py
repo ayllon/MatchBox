@@ -36,6 +36,7 @@ def prune_columns(table: pandas.DataFrame, nan_replace: Callable[[str, np.array]
                     del table[c]
     table.dropna(axis=1, how='all', inplace=True)
 
+
 _types = {
     'string': [str, np.bytes_],
     'float': [float, np.float32, np.float64],

@@ -2,6 +2,9 @@ from functools import reduce
 from operator import xor
 from typing import Union, Iterable
 
+import numpy as np
+import pandas
+
 
 class AttributeSet(object):
     """
@@ -18,7 +21,7 @@ class AttributeSet(object):
         For convenience, a reference to the actual dataset.
     """
 
-    def __init__(self, relation_name: str, attr_names: tuple, dataset: object = None):
+    def __init__(self, relation_name: str, attr_names: Iterable, dataset: pandas.DataFrame = None):
         self.__relation_name = relation_name
         if isinstance(attr_names, tuple):
             self.__attr_names = attr_names
@@ -45,11 +48,11 @@ class AttributeSet(object):
         self.__attr_names += attrs
 
     @property
-    def relation(self) -> object:
+    def relation(self) -> pandas.DataFrame:
         return self.__relation
 
     @property
-    def data(self) -> object:
+    def data(self) -> np.ndarray:
         return self.__relation[list(self.__attr_names)]
 
     @property

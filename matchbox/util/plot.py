@@ -1,7 +1,12 @@
+from typing import Iterable, Union
+
 import networkx as nx
+from typing.io import IO
+
+from matchbox.hypergraph import Edge
 
 
-def to_networkx(edges):
+def to_networkx(edges: Iterable[Edge]):
     G = nx.Graph()
     knot = 0
     for e in edges:
@@ -12,6 +17,6 @@ def to_networkx(edges):
     return G
 
 
-def to_dot_file(edges, path):
+def to_dot_file(edges: Iterable[Edge], path: Union[str, IO]):
     G = to_networkx(edges)
     nx.drawing.nx_agraph.write_dot(G, path)

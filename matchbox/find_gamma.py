@@ -11,14 +11,16 @@ from typing import FrozenSet, Set, Callable, Tuple
 
 import numpy as np
 
-from matchbox import Mind, Ind
-from matchbox.find2 import generate_clique_candidate, gen_sub_inds, gen_k_ary_ind_from_cliques
-from matchbox.hypergraph import Graph, induced_subgraph, Edge, is_quasi_clique
-from matchbox.tests import knn_test
+from .find2 import generate_clique_candidate, gen_sub_inds, gen_k_ary_ind_from_cliques
+from .hypergraph import Graph, induced_subgraph, Edge, is_quasi_clique
+from .ind import Ind
+from .mind import Mind
+from .tests import knn_test
 
 _logger = logging.getLogger(__name__)
 
 
+# noinspection PyPep8Naming
 def reduce_graph(G: Graph) -> Tuple[Graph, Graph]:
     """
     Reduces an irreducible graph removing an edge from it and generating two subgraphs
@@ -49,15 +51,16 @@ def reduce_graph(G: Graph) -> Tuple[Graph, Graph]:
     return G1, G2
 
 
+# noinspection PyPep8Naming
 def find_quasicliques(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
     """
-    Based on HYPERCLIQUE algorithm from Koeller 2003, but looks for quasicliques,
+    Based on HYPERCLIQUE algorithm from Koeller 2003, but looks for quasi-cliques,
     instead
 
     Parameters
     ----------
     G : Graph
-    lamb : float
+    lambd : float
     gamma : float
 
     Returns

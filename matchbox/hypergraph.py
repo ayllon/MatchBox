@@ -4,15 +4,17 @@ import numpy as np
 from scipy.special import comb
 from scipy.stats import hypergeom
 
-from matchbox import Ind, AttributeSet
+from .attributeset import AttributeSet
+from .ind import Ind
 
 
-class Edge(object):
+class Edge(FrozenSet):
     """
     A frozenset of vertex with the 'valid' attribute
     """
 
     def __init__(self, args, valid=False, confidence=0):
+        super().__init__()
         self.set = frozenset(args)
         self.valid = valid
         self.confidence = confidence
@@ -41,6 +43,7 @@ class Edge(object):
         """
         lhs_attr = []
         rhs_attr = []
+        ind = None
         for ind in self.set:
             lhs_attr.extend(ind.lhs.attr_names)
             rhs_attr.extend(ind.rhs.attr_names)
@@ -57,7 +60,7 @@ class Graph(object):
     A Graph is just a set of vertex plus a set of edges (which, in turn, are a set of vertex)
     """
 
-    def __init__(self, V: Iterable[Ind] = set(), E: Iterable[Ind] = set()):
+    def __init__(self, V: Iterable[Ind] = frozenset(), E: Iterable[Edge] = frozenset()):
         self.V = frozenset(V)
         self.E = frozenset(E)
 
@@ -163,7 +166,9 @@ def is_quasi_clique(G: Graph, S: FrozenSet[Ind], lambd: float, gamma: float) -> 
     G : Graph
     S : Set of nodes (Ind)
     lambd : float
-        Ratio of degree of vertices (Brunato et al 2007)
+        Assuming H0: every edge is equally likely to be missing, the expected distribution
+        of the degree of each node follows an hyper-geometric distribution (take n where only k are
+        present). This parameter is the significance level used to reject H0 with this test.
     gamma : float
         Ratio of number of edges (Brunato et al 2007)
 

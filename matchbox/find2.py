@@ -12,10 +12,10 @@ from typing import Iterable, FrozenSet, Tuple, Set, Callable
 
 import numpy as np
 
-from matchbox import Mind, Ind
-from matchbox.hypergraph import Graph, Edge, is_clique, induced_subgraph
-from matchbox.tests import knn_test
-from matchbox.zigzag import is_satisfied
+from .hypergraph import Graph, Edge, is_clique, induced_subgraph
+from .ind import Ind, is_satisfied
+from .mind import Mind
+from .tests import knn_test
 
 _logger = logging.getLogger(__name__)
 
@@ -49,6 +49,7 @@ def generate_clique_candidate(G: Graph, e0: Edge) -> FrozenSet[Ind]:
     return frozenset(S)
 
 
+# noinspection PyPep8Naming
 def find_hypercliques(G: Graph) -> FrozenSet[Edge]:
     """
     HYPERCLIQUE algorithm from Koeller 2003
@@ -87,6 +88,7 @@ def find_hypercliques(G: Graph) -> FrozenSet[Edge]:
     return frozenset(map(Edge, result))
 
 
+# noinspection PyPep8Naming
 def reduce_graph(G: Graph) -> Tuple[Graph, Graph]:
     """
     Reduces an irreducible graph removing an edge from it and generating two subgraphs
