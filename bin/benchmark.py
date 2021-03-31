@@ -224,7 +224,7 @@ def run_finder(Finder: Type, alpha: float,
                 results[f'max_{pair}'] = list()
             results[f'max_{pair}'].append(ind.arity)
 
-        nind_dir = os.path.join(output_dir, run_id)
+        nind_dir = os.path.join(output_dir, run_id[:2], run_id)
         os.makedirs(nind_dir)
 
         # Save a summary of the arities
