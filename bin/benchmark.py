@@ -17,6 +17,11 @@ from filelock import FileLock
 from numpy.random import BitGenerator
 from pandas import DataFrame
 
+try:
+    import matchbox
+except ImportError:
+    sys.path.append(os.path.join(os.path.dirname(sys.argv[0]), '..'))
+
 from matchbox.find2 import Find2
 from matchbox.find_gamma import FindGamma
 from matchbox.hypergraph import generate_graph
