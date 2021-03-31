@@ -52,7 +52,8 @@ def load_csv(path: str, ncols: int) -> DataFrame:
     """
     Load a CSV file using pandas
     """
-    return pandas.read_csv(path, usecols=range(ncols), skipinitialspace=True)
+    cols = range(ncols) if ncols else None
+    return pandas.read_csv(path, usecols=cols, skipinitialspace=True)
 
 
 # List of supported formats and their loaders
