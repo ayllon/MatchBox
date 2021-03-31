@@ -64,8 +64,7 @@ _loaders = {
 }
 
 
-def load_datasets(paths: List[str], sample_size: int, random_state: BitGenerator,
-                  ncols: int = None) -> List[Tuple[str, DataFrame]]:
+def load_datasets(paths: List[str], ncols: int = None) -> List[Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
 
@@ -73,10 +72,6 @@ def load_datasets(paths: List[str], sample_size: int, random_state: BitGenerator
     ----------
     paths : list of strings
         Paths to the datasets
-    sample_size : int
-        Sample size to read from the file
-    random_state : BitGenerator
-        Used to set the initial random state of the sampler
     ncols : int
         Read only this number of columns (all if 0 or None)
 
@@ -96,7 +91,7 @@ def load_datasets(paths: List[str], sample_size: int, random_state: BitGenerator
             df.dropna(axis=0, how='any', inplace=True)
         name = os.path.basename(path)
         logger.info('\t%d columns loaded', len(df.columns))
-        dataframes.append((name, df.sample(sample_size, replace=True, random_state=random_state)))
+        dataframes.append((name, df))
     return dataframes
 
 
@@ -282,6 +277,8 @@ def define_arguments() -> ArgumentParser:
                         help='Select a subset of the columns')
     parser.add_argument('--write-dot', action='store_true',
                         help='Write a dot file with the initial graph')
+    parser.add_argument('--repeat', type=int, default=1,
+                        help='Repeat the test these number of times')
     parser.add_argument('data1', metavar='DATA1', help='Dataset 1')
     parser.add_argument('data2', metavar='DATA2', help='Dataset 2')
     return parser
@@ -313,62 +310,72 @@ def main():
     # Create output directory if necessary
     os.makedirs(output_dir, exist_ok=True)
 
-    # Load a sample from the input datasets
-    samples = load_datasets([args.data1, args.data2], ncols=args.columns, sample_size=args.sample_size,
-                            random_state=random_generator)
-
-    # Initial set of unary IND
-    logger.info('Looking for unary IND')
-    uinds = generate_uind(samples, alpha=args.uind_alpha)
-    uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, uinds))
-    logger.info('%d unary IND found with matching names', len(uind_name_match))
-
     # Common statistical test setup
     test_args = dict(k=args.k, n_perm=args.permutations)
     test_method = knn_test
 
-    # Bootstrap initial set of IND using mind
-    # The individual methods can bootstrap themselves, but we want to have the initial conditions  as close as possible
-    initial_ind = bootstrap_ind(
-        uinds, stop=args.bootstrap_arity, alpha=min(args.bootstrap_alpha),
-        test_method=test_method, test_args=test_args
-    )
-    induced_uind = reduce(frozenset.union, map(Ind.get_all_unary, initial_ind), frozenset())
-    uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, induced_uind))
-    logger.info('%d unary IND found with matching names after bootstrapping', len(uind_name_match))
+    # Load datasets
+    datasets = load_datasets([args.data1, args.data2], ncols=args.columns)
 
-    # Write dot file with the initial graph
-    if args.write_dot:
-        graph_dot_file = os.path.join(output_dir, f'{args.bootstrap_arity}-graph.dot')
-        bootstrap_graph, _ = generate_graph(initial_ind)
-        to_dot_file(bootstrap_graph.E, graph_dot_file)
-        logger.info('Initial graph written to %s', graph_dot_file)
+    # We draw different samples each time, so we need to restart from the beginning,
+    # but at least we avoid re-loading the datasets
+    for i in range(1, args.repeat + 1):
+        logger.info('Iteration %d / %d', i, args.repeat)
 
-    # Benchmark find2
-    run_finder(
-        Find2, alpha=args.nind_alpha,
-        bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
-        exact=len(uind_name_match), test_method=test_method, test_args=test_args,
-        output_dir=output_dir, csv_name='find2.csv'
-    )
+        # Get samples
+        samples = [
+            (name, df.sample(args.sample_size, replace=True, random_state=random_generator)) for name, df in datasets
+        ]
 
-    # Benchmark findg
-    for lambd, gamma, in itertools.product(args.lambdas, args.gammas):
-        if np.isinf(lambd) and np.isinf(gamma):
-            continue
-        logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha', lambd, gamma)
+        # Initial set of unary IND
+        logger.info('Looking for unary IND')
+        uinds = generate_uind(samples, alpha=args.uind_alpha)
+        uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, uinds))
+        logger.info('%d unary IND found with matching names', len(uind_name_match))
+
+        # Bootstrap initial set of IND using mind
+        # The individual methods can bootstrap themselves, but we want to have the initial conditions
+        # as close as possible
+        initial_ind = bootstrap_ind(
+            uinds, stop=args.bootstrap_arity, alpha=min(args.bootstrap_alpha),
+            test_method=test_method, test_args=test_args
+        )
+        induced_uind = reduce(frozenset.union, map(Ind.get_all_unary, initial_ind), frozenset())
+        uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, induced_uind))
+        logger.info('%d unary IND found with matching names after bootstrapping', len(uind_name_match))
+
+        # Write dot file with the initial graph
+        if args.write_dot:
+            graph_dot_file = os.path.join(output_dir, f'{args.bootstrap_arity}-graph.dot')
+            bootstrap_graph, _ = generate_graph(initial_ind)
+            to_dot_file(bootstrap_graph.E, graph_dot_file)
+            logger.info('Initial graph written to %s', graph_dot_file)
+
+        # Benchmark find2
         run_finder(
-            FindGamma, alpha=args.nind_alpha,
+            Find2, alpha=args.nind_alpha,
             bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
             exact=len(uind_name_match), test_method=test_method, test_args=test_args,
-            output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}.csv',
-            # What this does it to dynamically adapt the gamma parameter to be
-            # 1 - the initial alpha (so if 0.05 of the edges are to be expected missing, gamma will be 0.95)
-            kwargs_callback=lambda alpha: dict(
-                lambd=lambd,
-                gamma=np.clip(1 - gamma * alpha, 0., 1.)
-            )
+            output_dir=output_dir, csv_name='find2.csv'
         )
+
+        # Benchmark findg
+        for lambd, gamma, in itertools.product(args.lambdas, args.gammas):
+            if np.isinf(lambd) and np.isinf(gamma):
+                continue
+            logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha', lambd, gamma)
+            run_finder(
+                FindGamma, alpha=args.nind_alpha,
+                bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
+                exact=len(uind_name_match), test_method=test_method, test_args=test_args,
+                output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}.csv',
+                # What this does it to dynamically adapt the gamma parameter to be
+                # 1 - the initial alpha (so if 0.05 of the edges are to be expected missing, gamma will be 0.95)
+                kwargs_callback=lambda alpha: dict(
+                    lambd=lambd,
+                    gamma=np.clip(1 - gamma * alpha, 0., 1.)
+                )
+            )
 
 
 if __name__ == '__main__':
