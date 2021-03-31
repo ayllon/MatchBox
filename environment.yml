@@ -2,13 +2,15 @@ name: matchbox
 channels:
   - defaults
 dependencies:
-  - python==3.8
-  - astropy
-  - scipy
-  - git
   - git-lfs
-  - networkx
+  - git
+  - pandas
+  - astropy
+  - python==3.8
+  - scipy
   - scikit-learn
   - filelock
-  - pandas
   - intervaltree
+  - networkx
+  - jupyterlab
+  - matplotlib
