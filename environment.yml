@@ -1,0 +1,13 @@
+name: matchbox
+channels:
+  - defaults
+dependencies:
+  - python==3.8
+  - git-lfs
+  - git
+  - pandas
+  - astropy
+  - filelock
+  - scipy
+  - scikit-learn
+  - networkx
