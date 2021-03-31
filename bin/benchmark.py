@@ -192,7 +192,7 @@ def run_finder(Finder: Type, alpha: float,
         'id': [], 'exact': [], 'alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': []
     }
 
-    finder_name = type(Finder).__name__
+    finder_name = Finder.__name__
 
     for b_alpha in bootstrap_alphas:
         logger.info('%s starting with alpha=%.2f', finder_name, b_alpha)
