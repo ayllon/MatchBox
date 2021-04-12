@@ -279,6 +279,8 @@ def define_arguments() -> ArgumentParser:
                         help='Write a dot file with the initial graph')
     parser.add_argument('--repeat', type=int, default=1,
                         help='Repeat the test these number of times')
+    parser.add_argument('--no-find2', action='store_true',
+                        help='Do not run Find2')
     parser.add_argument('data1', metavar='DATA1', help='Dataset 1')
     parser.add_argument('data2', metavar='DATA2', help='Dataset 2')
     return parser
@@ -352,12 +354,15 @@ def main():
             logger.info('Initial graph written to %s', graph_dot_file)
 
         # Benchmark find2
-        run_finder(
-            Find2, alpha=args.nind_alpha,
-            bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
-            exact=len(uind_name_match), test_method=test_method, test_args=test_args,
-            output_dir=output_dir, csv_name='find2.csv'
-        )
+        if not args.no_find2:
+            run_finder(
+                Find2, alpha=args.nind_alpha,
+                bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
+                exact=len(uind_name_match), test_method=test_method, test_args=test_args,
+                output_dir=output_dir, csv_name='find2.csv'
+            )
+        else:
+            logger.warning('Skipping Find2 run')
 
         # Benchmark findg
         for lambd, gamma, in itertools.product(args.lambdas, args.gammas):
