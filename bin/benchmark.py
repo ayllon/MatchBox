@@ -189,7 +189,7 @@ def run_finder(Finder: Type, alpha: float,
         It can be used by the caller to adapt the parameters passed to the Finder
     """
     results = {
-        'id': [], 'exact': [], 'alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': []
+        'id': [], 'exact': [], 'bootstrap_alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': []
     }
 
     finder_name = Finder.__name__
@@ -213,7 +213,7 @@ def run_finder(Finder: Type, alpha: float,
         run_id = str(uuid.uuid1())
         results['id'].append(run_id)
         results['exact'].append(exact)
-        results['alpha'].append(alpha)
+        results['bootstrap_alpha'].append(b_alpha)
         results['time'].append(timing.elapsed)
         results['tests'].append(counted_test.counter)
         results['ind'].append(len(nind))
