@@ -269,9 +269,9 @@ def define_arguments() -> ArgumentParser:
                         help='Significance levels for the bootstrapping tests (KNN)')
     parser.add_argument('--bootstrap-arity', type=int, default=2,
                         help='Run MIND up to this arity')
-    parser.add_argument('--lambdas', type=float, nargs='+', default=[0.01, 0.05, 0.1],
+    parser.add_argument('--lambdas', type=float, nargs='+', default=[0.05, 0.1],
                         help='Significance level for the Hyper-geometric test on the degrees of the nodes')
-    parser.add_argument('--gammas', type=float, nargs='+', default=[1., 1.1, 1.5],
+    parser.add_argument('--gammas', type=float, nargs='+', default=[1.],
                         help='Gamma factor for the number of missing edges on a quasi-clique')
     parser.add_argument('--columns', type=int, default=None,
                         help='Select a subset of the columns')
