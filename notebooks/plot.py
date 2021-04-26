@@ -90,19 +90,19 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
 
     # Plot find2 as reference
     ax_time = fig.add_subplot(grid[0])
-    plot_violin(find2, 'time', color=sm.to_rgba(0), group_by='alpha', ax=ax_time)
+    plot_violin(find2, 'time', color=sm.to_rgba(0), group_by='bootstrap_alpha', ax=ax_time)
     ax_time.set_title('Find2')
     ax_time.set_ylabel('Time (s)')
     ax_time.yaxis.grid(True)
     ax_time.set_yscale('log')
 
     ax_nind = fig.add_subplot(grid[1 * ncolumns])
-    plot_violin(find2, f'{max_ind_column}', color=sm.to_rgba(0), group_by='alpha', ax=ax_nind)
+    plot_violin(find2, f'{max_ind_column}', color=sm.to_rgba(0), group_by='bootstrap_alpha', ax=ax_nind)
     ax_nind.set_ylabel('Maximal nIND')
     ax_nind.yaxis.grid(True)
 
     ax_tests = fig.add_subplot(grid[2 * ncolumns])
-    plot_violin(find2, 'tests', color=sm.to_rgba(0), group_by='alpha', ax=ax_tests)
+    plot_violin(find2, 'tests', color=sm.to_rgba(0), group_by='bootstrap_alpha', ax=ax_tests)
     ax_tests.set_ylabel('Number of tests')
     ax_tests.set_xlabel('Initial $\\alpha$')
     ax_tests.set_yscale('log')
@@ -114,7 +114,7 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
         color = sm.to_rgba(i)
 
         axt = fig.add_subplot(grid[i], sharex=ax_time, sharey=ax_time)
-        plot_violin(data, 'time', color=color, group_by='alpha', ax=axt)
+        plot_violin(data, 'time', color=color, group_by='bootstrap_alpha', ax=axt)
         if gamma == 1:
             axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-\\alpha$')
         else:
@@ -123,12 +123,12 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
         axt.yaxis.grid(True)
 
         axn2 = fig.add_subplot(grid[1 * ncolumns + i], sharey=ax_nind, sharex=ax_nind)
-        plot_violin(data, f'{max_ind_column}', color=color, group_by='alpha', ax=axn2)
+        plot_violin(data, f'{max_ind_column}', color=color, group_by='bootstrap_alpha', ax=axn2)
         plt.setp(axn2.get_yticklabels(), visible=False)
         axn2.yaxis.grid(True)
 
         axtt = fig.add_subplot(grid[2 * ncolumns + i], sharey=ax_tests, sharex=ax_tests)
-        plot_violin(data, 'tests', color=color, group_by='alpha', ax=axtt)
+        plot_violin(data, 'tests', color=color, group_by='bootstrap_alpha', ax=axtt)
         axtt.set_yscale('log')
         axtt.yaxis.grid(True)
         plt.setp(axtt.get_yticklabels(), visible=False)
