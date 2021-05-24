@@ -134,5 +134,6 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
         plt.setp(axtt.get_yticklabels(), visible=False)
         axtt.set_xlabel('Initial $\\alpha$')
 
-    fig.suptitle(f'{max_ind_column}')
+    #fig.suptitle(f'{max_ind_column}')
     fig.tight_layout()
+    return fig
