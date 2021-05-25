@@ -21,7 +21,7 @@ for i in $(seq 1 $SLURM_NTASKS); do
         --id "${ID}" \
         --bootstrap-arity 3 \
         --uind-alpha 0.1 \
-        --bootstrap-alpha 0.1 \
+        --bootstrap-alpha 0.05 0.1 0.15 \
         --repeat 1000 \
         --output-dir "${MATCHDIR}/results/" \
         "${MATCHDIR}/data/keel/ailerons/ailerons.dat" "${MATCHDIR}/data/keel/elevators/elevators.dat" &> "${MATCHDIR}/results/$ID/run.${i}.log" &
