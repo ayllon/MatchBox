@@ -28,71 +28,11 @@ from matchbox.hypergraph import generate_graph
 from matchbox.ind import Ind, unique_inds, find_max_arity_per_pair
 from matchbox.tests import knn_test
 from matchbox.util.callcounter import CallCounter
-from matchbox.util.keel import parse_keel_file
 from matchbox.util.plot import to_dot_file
 from matchbox.util.timing import Timing
+from matchbox.util.loaders import load_datasets
 
 logger = logging.getLogger('benchmark')
-
-
-def load_fits(path: str, ncols: int) -> DataFrame:
-    """
-    Load a FITS catalog. Only the first table HDU is supported.
-    """
-    from astropy.table import Table
-    df = Table.read(path).to_pandas()
-    if ncols:
-        df = df[df.columns[:ncols]]
-    # Need to mask "special" -99 values
-    df.replace(-99, np.nan)
-    return df
-
-
-def load_csv(path: str, ncols: int) -> DataFrame:
-    """
-    Load a CSV file using pandas
-    """
-    cols = range(ncols) if ncols else None
-    return pandas.read_csv(path, usecols=cols, skipinitialspace=True)
-
-
-# List of supported formats and their loaders
-_loaders = {
-    '.fits': load_fits,
-    '.dat': parse_keel_file,
-    '.csv': load_csv
-}
-
-
-def load_datasets(paths: List[str], ncols: int = None) -> List[Tuple[str, DataFrame]]:
-    """
-    Load a list of datasets from files
-
-    Parameters
-    ----------
-    paths : list of strings
-        Paths to the datasets
-    ncols : int
-        Read only this number of columns (all if 0 or None)
-
-    Returns
-    -------
-    out : List of tuples (name, dataframe)
-    """
-    dataframes = []
-    for path in paths:
-        logger.info('Loading %s', path)
-        ext = os.path.splitext(path)[1]
-        df = _loaders[ext](path, ncols)
-        with pandas.option_context('mode.use_inf_as_na', True):
-            # Drop columns that are all NaN or Inf
-            df.dropna(axis=1, how='all', inplace=True)
-            # Drop rows with at least one NaN or Inf
-            df.dropna(axis=0, how='any', inplace=True)
-        name = os.path.basename(path)
-        logger.info('\t%d columns loaded', len(df.columns))
-        dataframes.append((name, df))
-    return dataframes
 
 
 def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float) -> Set[Ind]:
