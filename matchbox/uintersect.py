@@ -80,13 +80,11 @@ class UIntersectFinder(object):
     def __call__(self, alpha=0.05, no_symmetric=False, progress_listener=NoopListener):
         """
         Run the modified algorithm over the interval tree
-        Uses Wilcoxon test:
-            https://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test
 
         Parameters
         ----------
         alpha : float
-            Rejection level for the Wilcoxon test
+            Rejection level for the statistical test
         progress_listener : type
             An iterable type that can be constructed receiving another iterator. It can be used to report
             progress back to the user (i.e. tqdm)
