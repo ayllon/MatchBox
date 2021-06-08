@@ -1,5 +1,6 @@
 import os
 import tarfile
+import numpy as np
 from typing import Tuple, Any, Mapping, Iterable, Union, List
 
 import pandas
@@ -109,7 +110,7 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
     rows = [('Find2', None, None) + compute_stats(find2, ('bootstrap_alpha', alpha))]
 
     for (lambd, gamma), v in findq.items():
-        rows.append(('FindQ', lambd, 1 - alpha * gamma) + compute_stats(v, ('bootstrap_alpha', alpha)))
+        rows.append(('FindQ', lambd, np.clip(1 - alpha * gamma, 0., 1.)) + compute_stats(v, ('bootstrap_alpha', alpha)))
 
     return pandas.DataFrame(
         rows, columns=['Method', 'Lambda', 'Gamma', 'Time (mean)', 'Time (std)', 'Match (mean)', 'Match (std)', 'N']
