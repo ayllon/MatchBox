@@ -366,7 +366,8 @@ def main():
 
         # Benchmark findg
         for lambd, gamma, in itertools.product(args.lambdas, args.gammas):
-            if np.isinf(lambd) and np.isinf(gamma):
+            # This combination is too lax, anything would be accepted
+            if lambd <= 0 and gamma >= 100:
                 continue
             logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha', lambd, gamma)
             run_finder(
