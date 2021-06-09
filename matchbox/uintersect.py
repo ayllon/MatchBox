@@ -107,6 +107,7 @@ class UIntersectFinder(object):
                 if A.relation_name != B.relation_name:
                     A_rhs[A][B] = 0
         # Intersect
+        ntests = 0
         for interval in progress_listener(sorted(self.__tree.all_intervals)):
             A, Av = interval.data
             overlapping = self.__tree.overlap(interval.begin, interval.end)
@@ -116,6 +117,7 @@ class UIntersectFinder(object):
                 if A.relation_name == B.relation_name:
                     continue
 
+                ntests += 1
                 pvalue = self.__method(Av, Bv)
                 if pvalue < alpha:
                     _logger.debug(f'Statistic check discards {A} ⊆ {B}')
@@ -123,6 +125,9 @@ class UIntersectFinder(object):
                     A_rhs[A][B] += 1
                     confidence[A][B] = pvalue
 
+        worst_nstest = sum(map(len, A_rhs.values()))
+        savings = ((worst_nstest - ntests) / worst_nstest) * 100
+        _logger.info(f'{ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
         # Find those within the threshold
         AI = set()
         for A in sorted(U):
