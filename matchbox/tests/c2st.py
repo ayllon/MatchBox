@@ -36,9 +36,9 @@ def c2s_test(lhs_data: pandas.DataFrame, rhs_data: pandas.DataFrame, classifier=
 
     # First: Construct the dataset
     if isinstance(lhs_data, pandas.DataFrame):
-        lhs_data = lhs_data.to_numpy()
+        lhs_data = lhs_data.dropna(axis=0, how='any').to_numpy()
     if isinstance(rhs_data, pandas.DataFrame):
-        rhs_data = rhs_data.to_numpy()
+        rhs_data = rhs_data.dropna(axis=0, how='any').to_numpy()
     X = np.concatenate([lhs_data, rhs_data])
     Y = np.concatenate([np.zeros(len(lhs_data)), np.ones(len(rhs_data))])
 
