@@ -41,7 +41,7 @@ _loaders = {
 }
 
 
-def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'both') -> List[Tuple[str, DataFrame]]:
+def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column') -> List[Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
 
