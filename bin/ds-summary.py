@@ -11,13 +11,13 @@ import numpy as np
 import pandas
 from pandas import DataFrame
 
-from matchbox.uintersect import UIntersectFinder
 
 try:
     import matchbox
 except ImportError:
     sys.path.append(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 
+from matchbox.uintersect import UIntersectFinder
 from matchbox.util.loaders import load_datasets
 
 logger = logging.getLogger('ds-summary')
