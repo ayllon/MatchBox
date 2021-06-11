@@ -69,7 +69,7 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
 
     Returns
     -------
-    out : tuple(mean time, std time, mean ratio, mean std, number of aggregated rows)
+    out : first, second and third quartiles for the time and for the match ratio, and number of items
     """
     max_ind_column = None
     for c in data.columns:
@@ -80,7 +80,10 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
     masked = data[mask]
 
     match = (masked[max_ind_column] / masked['exact'])
-    return masked['time'].mean(), masked['time'].std(), match.mean(), match.std(), mask.sum()
+    match = match[np.isfinite(match)]
+    time_qs = np.quantile(masked['time'], [0.25, 0.5, 0.75])
+    match_qs = np.quantile(match, [0.25, 0.5, 0.75])
+    return time_qs.tolist() + [time_qs[2]-time_qs[0]] + match_qs.tolist() + [match_qs[2]-match_qs[0], mask.sum()]
 
 
 def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame], findq_subset: Iterable = None,
@@ -107,11 +110,11 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
     if findq_subset is not None:
         findq = dict([(key, findq[key]) for key in findq_subset])
 
-    rows = [('Find2', None, None) + compute_stats(find2, ('bootstrap_alpha', alpha))]
+    rows = [['Find2', None, None] + compute_stats(find2, ('bootstrap_alpha', alpha))]
 
     for (lambd, gamma), v in findq.items():
-        rows.append(('FindQ', lambd, np.clip(1 - alpha * gamma, 0., 1.)) + compute_stats(v, ('bootstrap_alpha', alpha)))
+        rows.append(['FindQ', lambd, np.clip(1 - alpha * gamma, 0., 1.)] + compute_stats(v, ('bootstrap_alpha', alpha)))
 
     return pandas.DataFrame(
-        rows, columns=['Method', 'Lambda', 'Gamma', 'Time (mean)', 'Time (std)', 'Match (mean)', 'Match (std)', 'N']
+        rows, columns=['Method', 'Lambda', 'Gamma', 'Time Q1', 'Time Q2', 'Time Q3', 'Time IQR', 'Match Q1', 'Match Q2', 'Match Q3', 'Match IQR', 'N']
     ).sort_values(['Method', 'Lambda', 'Gamma'])
