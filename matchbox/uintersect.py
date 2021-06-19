@@ -126,8 +126,9 @@ class UIntersectFinder(object):
                     confidence[A][B] = pvalue
 
         worst_nstest = sum(map(len, A_rhs.values()))
-        savings = ((worst_nstest - ntests) / worst_nstest) * 100
-        _logger.info(f'{ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
+        if worst_nstest:
+            savings = ((worst_nstest - ntests) / worst_nstest) * 100
+            _logger.info(f'{ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
         # Find those within the threshold
         AI = set()
         for A in sorted(U):
