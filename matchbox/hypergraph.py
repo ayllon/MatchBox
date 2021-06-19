@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Iterable, FrozenSet
+from typing import Iterable, FrozenSet, Tuple
 
 import numpy as np
 from scipy.special import comb
@@ -160,13 +160,50 @@ def get_degrees(G: Graph, S: FrozenSet[Ind] = None):
     return node_degree
 
 
-def is_quasi_clique(G: Graph, S: FrozenSet[Ind], lambd: float, gamma: float) -> bool:
+def compute_thresholds(k: int, n: int, e: int, Lambda: float, gamma: float) -> Tuple[int, int]:
+    """
+    Compute the edge and degree thresholds
+
+    Parameters
+    ----------
+    k : int
+        Rank of the hypergraph
+    n : int
+        Number of nodes
+    e : int
+        Number of edges
+    Lambda : float
+        Significance level for the rejection of all edges are equally likely to be
+        rejected
+    gamma : float
+        Ratio of edges that must be present
+
+    Returns
+    -------
+    min_cardinality, min_degree : int, int
+    """
+    # Edge ratio
+    max_cardinality = comb(n, k)
+    min_cardinality = max(1, np.floor(gamma * max_cardinality))
+
+    # Expectation of degree
+    # If we have ne = |E| edges and all are similar, the degree of a node
+    # follows an hypergeometric distribution (i.e. if the clique has 108 out of 120 edges,
+    # how likely is it to have only a degree of less than 10?)
+    max_degree = comb(n - 1, k - 1)
+    h = hypergeom(max_cardinality, e, max_degree)
+    min_degree = h.ppf(Lambda)
+
+    return min_cardinality, min_degree
+
+
+def is_quasi_clique(G: Graph, S: FrozenSet[Ind], Lambda: float, gamma: float) -> bool:
     """
     Parameters
     ----------
     G : Graph
     S : Set of nodes (Ind)
-    lambd : float
+    Lambda : float
         Assuming H0: every edge is equally likely to be missing, the expected distribution
         of the degree of each node follows an hyper-geometric distribution (take n where only k are
         present). This parameter is the significance level used to reject H0 with this test.
@@ -193,21 +230,9 @@ def is_quasi_clique(G: Graph, S: FrozenSet[Ind], lambd: float, gamma: float) -> 
             for unary in e.set:
                 node_degree[unary] = node_degree.get(unary, 0) + 1
 
-    # Edge ratio
-    max_cardinality = comb(n, k)
-    min_cardinality = max(1, np.floor(gamma * max_cardinality))
+    min_cardinality, min_degree = compute_thresholds(k, n, len(E), Lambda, gamma)
     if len(E) < min_cardinality or len(node_degree) != len(S):
         return False
-
-    # Compute expectation of degree
-    max_degree = comb(n - 1, k - 1)
-
-    # If we have |E| edges and all are similar, the degree of a node
-    # follows an hypergeometric distribution (i.e. if the clique has 108 out of 120 edges,
-    # how likely is it to have only a degree of less than 10?)
-    h = hypergeom(max_cardinality, len(E), max_degree)
-    min_degree = h.ppf(lambd)
-
     return all(map(lambda v: v >= min_degree, node_degree.values()))
 
 
