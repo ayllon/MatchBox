@@ -189,6 +189,7 @@ def define_arguments() -> ArgumentParser:
     Initialize an ArgumentParser
     """
     parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true', help='Debug logging')
     parser.add_argument('--id', type=str, default=None,
                         help='Run identifier, defaults to a derived from the dataset file names')
     parser.add_argument('--output-dir', type=str, default='/tmp',
@@ -230,15 +231,16 @@ def main():
     """
     Entry point
     """
-    # Basic setup
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
-    logging.basicConfig(format='%(asctime)s %(name)15.15s %(levelname)s\t%(message)s',
-                        level=logging.INFO, stream=sys.stderr)
-    logging.getLogger('filelock').setLevel(logging.WARN)
-
     # Parse arguments
     parser = define_arguments()
     args = parser.parse_args()
+
+    # Basic setup
+    log_level = logging.INFO if not args.debug else logging.DEBUG
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    logging.basicConfig(format='%(asctime)s %(name)15.15s %(levelname)s\t%(message)s',
+                        level=log_level, stream=sys.stderr)
+    logging.getLogger('filelock').setLevel(logging.WARN)
 
     # Initialize the random state
     random_generator = np.random.MT19937(args.seed)
