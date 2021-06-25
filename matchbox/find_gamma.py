@@ -1,23 +1,179 @@
 """
-Implementation of the FIND2 algorithm
+Implementation of the FINDQ algorithm
 
-Discovery of high-dimensional inclusion dependencies, Koeller 2003
-
-Following the pseudocode from the paper with a couple of corrections
+Based on
+- Discovery of high-dimensional inclusion dependencies, Koeller 2003
+- An efficient algorithm for solving pseudo clique enumeration problem, Uno 2010
 """
 import logging
 from functools import reduce
-from typing import FrozenSet, Set, Callable, Tuple
+from typing import FrozenSet, Set, Callable, Tuple, Dict
 
 import numpy as np
+from scipy.special import comb
 
 from .find2 import generate_clique_candidate, gen_sub_inds, gen_k_ary_ind_from_cliques
-from .hypergraph import Graph, induced_subgraph, Edge, is_quasi_clique
+from .hypergraph import Graph, induced_subgraph, Edge, is_quasi_clique, compute_thresholds, get_degrees
 from .ind import Ind
 from .mind import Mind
 from .tests import knn_test
 
 _logger = logging.getLogger(__name__)
+
+
+def get_connected(E: FrozenSet[Edge], S: FrozenSet) -> Dict[Ind, Set[Ind]]:
+    """
+    For speeding up the lookup of connected vertices, we precompute the list
+    of connected Ind to a given Ind
+
+    Parameters
+    ----------
+    S
+    G : Graph
+        Full graph
+
+    Returns
+    -------
+    out : Dictionary of Ind, Set(Ind), pair
+        The value is the set of Ind connected to a given Ind
+    """
+    connected = dict([(v, set()) for v in S])
+    for e in E:
+        if S.issuperset(e.set):
+            for unary in e.set:
+                connected[unary].update(e.set.difference({unary}))
+    return connected
+
+
+def clq(n: int, k: int) -> int:
+    """
+    Number of edges on a clique of n vertices on a k-uniform graph
+
+    See Also
+    --------
+    Uno 2010, page 6
+    """
+    return comb(n, k)
+
+
+def theta(k: int, gamma: float, vertex_count: int, edge_count: int) -> float:
+    """
+    Threshold on the number of edges that a new vertex must contribute to a quasi-clique
+    so it continues being a quasi-clique
+
+    Parameters
+    ----------
+    k : int
+        Graph rank
+    gamma : float
+        Threshold for the number of edges
+    vertex_count : int
+        Number of vertices on the known quasi-clique K
+    edge_count : int
+        Number of edges on the known quasi-clique K
+
+    Returns
+    -------
+    out : float
+        Threshold on how many edges a new vertex u must contribute so K u {v} is also a pseudo-clique.
+        Note that this threshold may very well be 0 if K already has `gamma * clq(K+1)` edges!
+        The new vertex u should be adjacent to at least one member of K too.
+
+    See Also
+    --------
+    Uno 2010, page 10, lemma 2
+    """
+    return gamma * clq(vertex_count + 1, k) - edge_count
+
+
+# noinspection PyPep8Naming
+def grow_clique(G: Graph, K: FrozenSet, gamma: float, Lambda: float,
+                Seed: Set = None, Candidates: Set = None, G_connected=None,
+                K_degrees: Dict[Ind, int] = None,
+                edge_count: int = None) -> FrozenSet[Edge]:
+    # Seed
+    if Seed is None:
+        Seed = K
+
+    # Get candidate set
+    if Candidates is None:
+        Candidates = G.V.difference(K)
+
+    # Get degrees for the current clique
+    if K_degrees is None:
+        K_degrees = get_degrees(G, K)
+
+    # Set of vertices connected to nodes in G.V
+    if G_connected is None:
+        G_connected = get_connected(G.E, G.V)
+
+    # How many edges on the current quasi-clique?
+    if edge_count is None:
+        edge_count = len(induced_subgraph(G, K).E)
+
+    # Result set
+    result = set()
+
+    # The threshold for a new child quasi-clique depends only on the current one
+    # i.e. A new vertex *must* provide enough edges
+    gamma_degree_min = max(1, np.floor(theta(G.rank, gamma, len(K), edge_count))) if K else 0
+
+    # We can make an optimistic prediction on the degree, assuming as many as gamma * edges
+    # can be missing for adding any one vertex
+    # Any vertex with a degree lower than this over the whole graph can be removed, it will
+    # never pass the degree check
+    _, lambda_min_degree = compute_thresholds(G.rank, len(K) + 1, -1, Lambda, gamma)
+
+    # We can remove all v that do not satisfy the threshold
+    remove_set = set()
+    uno = 0
+    deg = 0
+    for v in Candidates:
+        affected = G_connected[v].intersection(K)
+        # Uno, lemma 2
+        if len(affected) < gamma_degree_min:
+            remove_set.add(v)
+            uno += 1
+        # Custom
+        elif len(affected) < lambda_min_degree:
+            remove_set.add(v)
+            deg += 1
+    Candidates.difference_update(remove_set)
+
+    # See Uno 2010, page 10
+    for v in Candidates:
+        # Elements in K that are connected to v
+        affected = G_connected[v].intersection(K)
+        # The degree of v on the induced subgraph is just the number of connected edges
+        K_degrees[v] = len(affected)
+        # Since we are adding a new vertex, update the degree of the other connected vertices
+        for a in affected:
+            K_degrees[a] = K_degrees.get(a, 0) + 1
+
+        # We have removed all candidates with a low degree, so no need to re-check the degree of v
+        # We need to check if we grow following this one, would it be v*?
+        # Only taking into account candidates, since we grow from a seed, we need to consider all vertex
+        # from the initial clique as if they were precedent
+        v_star = [p[0] for p in sorted(K_degrees.items(), key=lambda pair: (pair[1], pair[0])) if p[0] not in Seed][0]
+        _, min_degree = compute_thresholds(G.rank, len(K) + 1, edge_count + len(affected), Lambda, gamma)
+        if v == v_star:
+            if min_degree <= len(G_connected[v]):
+                nested = grow_clique(
+                    G, K.union({v}), gamma, Lambda,
+                    Seed, Candidates.difference({v}), G_connected, K_degrees, edge_count + len(affected)
+                )
+                result.update(nested)
+        # Undo counting update for the next iteration
+        for a in affected:
+            K_degrees[a] -= 1
+            if K_degrees[a] == 0:
+                del K_degrees[a]
+        # v will be deleted when K is the empty set
+        if v in K_degrees:
+            del K_degrees[v]
+
+    result.add(frozenset(K))
+    return frozenset(result)
 
 
 # noinspection PyPep8Naming
@@ -52,10 +208,11 @@ def reduce_graph(G: Graph) -> Tuple[Graph, Graph]:
 
 
 # noinspection PyPep8Naming
-def find_quasicliques(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
+def find_seeds(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
     """
-    Based on HYPERCLIQUE algorithm from Koeller 2003, but looks for quasi-cliques,
-    instead
+    Based on a combination of the HYPERCLIQUE algorithm from Koeller 2003,
+    and a modification of Uno 2010 adapted to hypercliques, defined
+    as a generalization of Brunato 2007
 
     Parameters
     ----------
@@ -66,14 +223,9 @@ def find_quasicliques(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
     Returns
     -------
     out : FrozenSet[Graph]
-        Set of maximal quasicliques in G.
-
-    Notes
-    -----
-    HYPERCLIQUE return edges, but instead we return here the full graph (vertices + edges)
-    since the connectivity may not be complete, so it is important to keep track of
-    the missing edges and not assume that all are connected with all
+        Set of maximal quasi-cliques in G.
     """
+
     result = set()
     while True:
         _logger.debug('Looking on graph with %d edges', len(G.E))
@@ -94,9 +246,9 @@ def find_quasicliques(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
             G1, G2 = reduce_graph(G)
             result.update(find_quasicliques(G1, lambd, gamma))
             result.update(find_quasicliques(G2, lambd, gamma))
-        G = Graph(G.V, E_star)
         if not (E_star and reducible):
             break
+        G = Graph(G.V, E_star)
 
     count = dict()
     for r in result:
@@ -105,6 +257,51 @@ def find_quasicliques(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
         _logger.debug('%d with %d vertex', c, k)
 
     return frozenset(result)
+
+
+# TODO: Add option to disable growing
+def find_quasicliques(G: Graph, lambd: float, gamma: float, grow: bool) -> FrozenSet[Edge]:
+    """
+
+    Parameters
+    ----------
+    G
+    lambd
+    gamma
+
+    Returns
+    -------
+
+    """
+    # Find seeds
+    seeds = find_seeds(G, lambd, gamma)
+    if not grow:
+        return seeds
+    _logger.info('Got %d seeds', len(seeds))
+    # Sort seeds by cardinality, highest first
+    seeds = sorted(seeds, key=len, reverse=True)
+
+    # Output set
+    result = set()
+
+    # For each seed
+    for seed in seeds:
+        # Skip if the seed is already a subset
+        if any(map(seed.issubset, result)):
+            continue
+        # Apply the growing step
+        _logger.debug('Growing from %d vertices', len(seed))
+        Sg = grow_clique(G, seed, gamma=gamma, Lambda=lambd)
+        _logger.debug('Expanded %d vertices into %d candidates', len(seed), len(Sg))
+        # Again, sort by cardinality, highest first
+        Sg = sorted(Sg, key=len, reverse=True)
+        for S in Sg:
+            if is_quasi_clique(G, S, lambd, gamma):
+                if not any(map(S.issubset, result)):
+                    _logger.debug('Got a positive with %d vertices from an initial seed of %d', len(S), len(seed))
+                    result.add(Edge(S))
+
+    return result
 
 
 class FindGamma(object):
@@ -129,13 +326,14 @@ class FindGamma(object):
         Arguments to pass to the test method
     """
 
-    def __init__(self, n: int = 2, alpha: float = 0.05, lambd: float = 0.85, gamma: float = 0.85,
+    def __init__(self, n: int = 2, alpha: float = 0.05, lambd: float = 0.85, gamma: float = 0.85, grow: bool = True,
                  bootstrap: Callable = Mind(), bootstrap_args: dict = None,
                  test: Callable = knn_test, test_args: dict = None):
         self.__n = n
         self.__alpha = alpha
         self.__lambda = lambd
         self.__gamma = gamma
+        self.__grow = grow
         self.__bootstrap = bootstrap
         self.__bootstrap_args = bootstrap_args if bootstrap_args else dict()
         self.__test = test
@@ -182,7 +380,7 @@ class FindGamma(object):
         start_arity, G = self.generate_graph(uind)
 
         _logger.info('Looking for %.2f / %.2f quasi hypercliques with %d edges', self.__lambda, self.__gamma, len(G.E))
-        H = find_quasicliques(G, self.__lambda, self.__gamma)
+        H = find_quasicliques(G, self.__lambda, self.__gamma, self.__grow)
         I = self._validate_all(H)
 
         result = set()
@@ -204,10 +402,10 @@ class FindGamma(object):
             if Gm.empty():
                 return frozenset(map(Edge.to_ind, result))
             result.update(gen_sub_inds(m, Gm, result))
-            Gm.V = frozenset(reduce(frozenset.union, map(lambda e: e.set, Gm.E), frozenset()))
+            Gm.V = set(reduce(set.union, map(lambda e: e.set, Gm.E), set()))
             _logger.info('Looking for %.2f / %.2f quasi hypercliques with %d edges',
                          self.__lambda, self.__gamma, len(Gm.E))
-            H = find_quasicliques(Gm, self.__lambda, self.__gamma)
+            H = find_quasicliques(Gm, self.__lambda, self.__gamma, self.__grow)
             I = self._validate_all(H)
 
         # Convert candidates back to Ind

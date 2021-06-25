@@ -3,6 +3,7 @@ import pytest
 from pandas import DataFrame
 
 from matchbox.attributeset import AttributeSet
+from matchbox.hypergraph import Graph, Edge
 from matchbox.ind import Ind
 
 
@@ -47,6 +48,7 @@ def table3():
     df['V'][np.argmax(df['V'])] = 10.
     return df
 
+
 @pytest.fixture
 def table4():
     df = DataFrame(
@@ -57,6 +59,7 @@ def table4():
         }
     )
     return df
+
 
 @pytest.fixture
 def ind():
@@ -79,4 +82,28 @@ def ind3():
     return Ind(
         lhs=AttributeSet('R', ['A', 'B', 'C']),
         rhs=AttributeSet('S', ['E', 'F', 'G'])
+    )
+
+
+@pytest.fixture
+def hyperclique48():
+    """
+    From Koeller 2002, Example 4.5
+    """
+    return Graph(
+        V={1, 2, 3, 4, 5},
+        E=set(map(Edge, [
+            {1, 2, 3}, {1, 3, 4}, {1, 2, 4}, {1, 5, 2},
+            {2, 3, 4}, {3, 4, 5}
+        ]))
+    )
+
+
+@pytest.fixture
+def graph2():
+    return Graph(
+        V={1, 2, 3, 4},
+        E=set(map(Edge, [
+            {1, 2}, {2, 3}, {3, 4}, {4, 1}, {2, 4}
+        ]))
     )

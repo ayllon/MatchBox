@@ -36,7 +36,7 @@ class Edge(FrozenSet):
         return len(self.set)
 
     def issuperset(self, other) -> bool:
-        return self.set.issuperset(other.set)
+        return self.set.issuperset(other)
 
     def to_ind(self) -> Ind:
         """
@@ -61,9 +61,16 @@ class Graph(object):
     A Graph is just a set of vertex plus a set of edges (which, in turn, are a set of vertex)
     """
 
-    def __init__(self, V: Iterable[Ind] = frozenset(), E: Iterable[Edge] = frozenset()):
-        self.V = frozenset(V)
-        self.E = frozenset(E)
+    def __init__(self, V: Iterable[Ind] = set(), E: Iterable[Edge] = set()):
+        self.V = set(V)
+        self.E = set(E)
+        self._rank = None
+
+    @property
+    def rank(self):
+        if self._rank is None:
+            self._rank = len(next(iter(self.E)))
+        return self._rank
 
     def empty(self) -> bool:
         """
@@ -171,7 +178,7 @@ def compute_thresholds(k: int, n: int, e: int, Lambda: float, gamma: float) -> T
     n : int
         Number of nodes
     e : int
-        Number of edges
+        Number of edges, if -1, assume gamma * max_cardinality
     Lambda : float
         Significance level for the rejection of all edges are equally likely to be
         rejected
@@ -186,13 +193,19 @@ def compute_thresholds(k: int, n: int, e: int, Lambda: float, gamma: float) -> T
     max_cardinality = comb(n, k)
     min_cardinality = max(1, np.floor(gamma * max_cardinality))
 
+    if e < 0:
+        e = max(1, np.floor(max_cardinality * gamma))
+
     # Expectation of degree
     # If we have ne = |E| edges and all are similar, the degree of a node
     # follows an hypergeometric distribution (i.e. if the clique has 108 out of 120 edges,
     # how likely is it to have only a degree of less than 10?)
-    max_degree = comb(n - 1, k - 1)
-    h = hypergeom(max_cardinality, e, max_degree)
-    min_degree = h.ppf(Lambda)
+    if Lambda > 0:
+        max_degree = comb(n - 1, k - 1)
+        h = hypergeom(max_cardinality, e, max_degree)
+        min_degree = h.ppf(Lambda)
+    else:
+        min_degree = 0
 
     return min_cardinality, min_degree
 

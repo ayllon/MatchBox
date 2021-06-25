@@ -4,20 +4,6 @@ from matchbox.find_gamma import *
 
 
 @pytest.fixture
-def hyperclique48():
-    """
-    From Koeller 2002, Example 4.5
-    """
-    return Graph(
-        V={1, 2, 3, 4, 5},
-        E=set(map(Edge, [
-            {1, 2, 3}, {1, 3, 4}, {1, 2, 4}, {1, 5, 2},
-            {2, 3, 4}, {3, 4, 5}
-        ]))
-    )
-
-
-@pytest.fixture
 def hyperclique_simple():
     return Graph(
         V={1, 2, 3, 4},
@@ -58,8 +44,41 @@ def test_find_hypercliques(hyperclique48):
     """
     gamma = 1., so it must be strictly equivalent to is_clique
     """
-    cliques = list(find_quasicliques(hyperclique48, lambd=1., gamma=1.))
+    cliques = list(find_quasicliques(hyperclique48, lambd=0., gamma=1.))
     assert 3 == len(cliques)
     assert Edge({1, 2, 5}) in cliques
     assert Edge({3, 4, 5}) in cliques
+    assert Edge({1, 2, 3, 4}) in cliques
+
+
+def test_grow_quasi(quasi_clique_grow):
+    """
+    Test only the grow_clique function, which must take a known clique
+    and grow applying Uno algorithm
+    """
+    cliques = grow_clique(quasi_clique_grow, {1, 2}, gamma=0.6)
+    assert 2 == len(cliques)
+    assert {1, 2, 3, 4} in cliques
+
+    cliques = grow_clique(quasi_clique_grow, {2, 3}, gamma=0.6)
+    assert 2 == len(cliques)
+    assert {1, 2, 3, 4} in cliques
+
+    cliques = grow_clique(quasi_clique_grow, {3, 4}, gamma=0.6)
+    assert 2 == len(cliques)
+    assert {1, 2, 3, 4} in cliques
+
+    cliques = grow_clique(quasi_clique_grow, {4, 1}, gamma=0.6)
+    assert 2 == len(cliques)
+    assert {1, 2, 3, 4} in cliques
+
+
+def test_find_quasi_grow(quasi_clique_grow):
+    """
+    The modified HYPERCLIQUE is not able to find a 0.6/0.6 quasiclique
+    since there are no edges connecting two nodes connected to all other nodes.
+    Applying the modified Uno's algorithm must grow the first candidate and find the full quasiclique
+    """
+    cliques = list(find_quasicliques(quasi_clique_grow, lambd=0.1, gamma=0.6))
+    assert 1 == len(cliques)
     assert Edge({1, 2, 3, 4}) in cliques

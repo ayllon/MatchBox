@@ -307,21 +307,22 @@ def main():
             logger.warning('Skipping Find2 run')
 
         # Benchmark findg
-        for lambd, gamma, in itertools.product(args.lambdas, args.gammas):
+        for lambd, gamma, grow in itertools.product(args.lambdas, args.gammas, [True, False]):
             # This combination is too lax, anything would be accepted
             if lambd <= 0 and gamma >= 100:
                 continue
-            logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha', lambd, gamma)
+            logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha, grow=%d', lambd, gamma, grow)
             run_finder(
                 FindGamma, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
-                output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}.csv',
+                output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}_{grow:d}.csv',
                 # What this does it to dynamically adapt the gamma parameter to be
                 # 1 - the initial alpha (so if 0.05 of the edges are to be expected missing, gamma will be 0.95)
                 kwargs_callback=lambda alpha: dict(
                     lambd=lambd,
-                    gamma=np.clip(1 - gamma * alpha, 0., 1.)
+                    gamma=np.clip(1 - gamma * alpha, 0., 1.),
+                    grow=grow,
                 )
             )
 
