@@ -244,8 +244,8 @@ def find_seeds(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
         if not reducible:
             _logger.debug('Not reducible!')
             G1, G2 = reduce_graph(G)
-            result.update(find_quasicliques(G1, lambd, gamma))
-            result.update(find_quasicliques(G2, lambd, gamma))
+            result.update(find_seeds(G1, lambd, gamma))
+            result.update(find_seeds(G2, lambd, gamma))
         if not (E_star and reducible):
             break
         G = Graph(G.V, E_star)
