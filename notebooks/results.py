@@ -41,8 +41,13 @@ def load_results(run_ids: Union[List[str], str], basedir: str = os.path.join(not
             filename = os.path.basename(m)
             if filename.startswith('findg'):
                 name = os.path.splitext(filename)[0]
-                _, lambd, gamma = name.split('_')
-                key = (float(lambd), float(gamma))
+                parts = name.split('_')
+                if len(parts) == 4:
+                    _, lambd, gamma, grow = parts
+                else:
+                    _, lambd, gamma = parts
+                    grow = 0
+                key = (float(lambd), float(gamma), int(grow))
                 if key not in all_findq:
                     all_findq[key] = []
                 all_findq[key].append(pandas.read_csv(tar.extractfile(f'{m}')))
@@ -83,7 +88,8 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
     match = match[np.isfinite(match)]
     time_qs = np.quantile(masked['time'], [0.25, 0.5, 0.75])
     match_qs = np.quantile(match, [0.25, 0.5, 0.75])
-    return time_qs.tolist() + [time_qs[2]-time_qs[0]] + match_qs.tolist() + [match_qs[2]-match_qs[0], mask.sum()]
+    nind_qs = np.quantile(masked['unique_ind'], [0.25, 0.5, 0.75])
+    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [mask.sum()]
 
 
 def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame], findq_subset: Iterable = None,
@@ -112,9 +118,9 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
 
     rows = [['Find2', None, None] + compute_stats(find2, ('bootstrap_alpha', alpha))]
 
-    for (lambd, gamma), v in findq.items():
-        rows.append(['FindQ', lambd, np.clip(1 - alpha * gamma, 0., 1.)] + compute_stats(v, ('bootstrap_alpha', alpha)))
+    for (lambd, gamma, grow), v in findq.items():
+        rows.append([f'FindQ {grow}', lambd, np.clip(1 - alpha * gamma, 0., 1.)] + compute_stats(v, ('bootstrap_alpha', alpha)))
 
     return pandas.DataFrame(
-        rows, columns=['Method', 'Lambda', 'Gamma', 'Time Q1', 'Time Q2', 'Time Q3', 'Time IQR', 'Match Q1', 'Match Q2', 'Match Q3', 'Match IQR', 'N']
+        rows, columns=['Method', 'Lambda', 'Gamma', 'Time Q1', 'Time Q2', 'Time Q3', 'Match Q1', 'Match Q2', 'Match Q3', 'Card Q1', 'Card Q2', 'Card Q3', 'N']
     ).sort_values(['Method', 'Lambda', 'Gamma'])

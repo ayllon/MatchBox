@@ -79,13 +79,13 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
         findq = dict([(key, findq[key]) for key in findq_subset])
 
     if fig is None:
-        fig = plt.figure()
+        fig = plt.figure(figsize=(9, 5))
 
     ncolumns = 1 + len(findq)
 
     sm = cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=ncolumns))
 
-    grid = gridspec.GridSpec(3, ncolumns)
+    grid = gridspec.GridSpec(4, ncolumns)
     grid.update(wspace=0.0, hspace=0.0)
 
     # Plot find2 as reference
@@ -103,22 +103,27 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
 
     ax_tests = fig.add_subplot(grid[2 * ncolumns])
     plot_violin(find2, 'tests', color=sm.to_rgba(0), group_by='bootstrap_alpha', ax=ax_tests)
-    ax_tests.set_ylabel('Number of tests')
-    ax_tests.set_xlabel('Initial $\\alpha$')
+    ax_tests.set_ylabel('Tests')
     ax_tests.set_yscale('log')
     ax_tests.yaxis.grid(True)
+    
+    ax_uind = fig.add_subplot(grid[3 * ncolumns])
+    plot_violin(find2, 'unique_ind', color=sm.to_rgba(0), group_by='bootstrap_alpha', ax=ax_uind)
+    ax_uind.set_ylabel('Unique IND')
+    ax_uind.set_xlabel('Initial $\\alpha$')
+    ax_uind.yaxis.grid(True)
 
     # Plot findq
     for i, (p, data) in enumerate(findq.items(), 1):
-        lambd, gamma = p
+        lambd, gamma, grow = p
         color = sm.to_rgba(i)
 
         axt = fig.add_subplot(grid[i], sharex=ax_time, sharey=ax_time)
         plot_violin(data, 'time', color=color, group_by='bootstrap_alpha', ax=axt)
         if gamma == 1:
-            axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-\\alpha$')
+            axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-\\alpha$ grow={grow}')
         else:
-            axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-{gamma}\\alpha$')
+            axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-{gamma}\\alpha$ grow={grow}')
         plt.setp(axt.get_yticklabels(), visible=False)
         axt.yaxis.grid(True)
 
@@ -129,11 +134,19 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
 
         axtt = fig.add_subplot(grid[2 * ncolumns + i], sharey=ax_tests, sharex=ax_tests)
         plot_violin(data, 'tests', color=color, group_by='bootstrap_alpha', ax=axtt)
-        axtt.set_yscale('log')
         axtt.yaxis.grid(True)
         plt.setp(axtt.get_yticklabels(), visible=False)
         axtt.set_xlabel('Initial $\\alpha$')
+        
+        
+        axni = fig.add_subplot(grid[3 * ncolumns + i], sharey=ax_uind, sharex=ax_uind)
+        plot_violin(data, 'unique_ind', color=color, group_by='bootstrap_alpha', ax=axni)
+        axni.yaxis.grid(True)
+        plt.setp(axni.get_yticklabels(), visible=False)
+        axni.set_xlabel('Initial $\\alpha$')
+        
 
     #fig.suptitle(f'{max_ind_column}')
     fig.tight_layout()
+    fig.align_ylabels([ax_time, ax_nind, ax_tests, ax_uind])
     return fig
