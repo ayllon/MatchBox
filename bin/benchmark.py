@@ -65,7 +65,8 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float) -> Set[
 
 def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callable, test_args: dict) -> Set[Ind]:
     """
-    Run MIND on the initial set of unary IND up to the level `stop`
+    Generate and validate a set of IND of arity `stop` from a given initial set of unary IND.
+    Intermediate validations are not done so the expected number of missing edges is easier to understand.
 
     Parameters
     ----------
@@ -84,14 +85,20 @@ def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callabl
     out : Set of Ind
         Validated set of n-IND
     """
-    from matchbox.mind import Mind
+    from matchbox.gennext import gen_next
 
-    timing = Timing()
-    mind_bootstrap = Mind(alpha=alpha, test=test_method, test_args=test_args)
-    with timing:
-        inds = mind_bootstrap(uinds, stop=stop)
+    candidates = uinds
+    for _ in range(1, stop):
+        candidates = gen_next(candidates)
+
+    logger.info('Number of candidate %d-IND: %d', stop, len(candidates))
+    inds = set()
+    for candidate in candidates:
+        candidate.confidence = test_method(candidate.lhs.data, candidate.rhs.data, **test_args)
+        if candidate.confidence >= alpha:
+            inds.add(candidate)
+
     logger.info('Number of %d-IND: %d', stop, len(inds))
-    logger.info('Took %.2f seconds', timing.elapsed)
     return inds
 
 
