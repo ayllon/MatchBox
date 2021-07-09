@@ -81,15 +81,16 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
         if c.startswith('max_'):
             max_ind_column = c
 
-    mask = (data[filter_by[0]] == filter_by[1])
+    mask = (data[filter_by[0]] == filter_by[1]) & (data['exact'] > 0) & (data['ind'] > 0)
     masked = data[mask]
 
     match = (masked[max_ind_column] / masked['exact'])
-    match = match[np.isfinite(match)]
-    time_qs = np.quantile(masked['time'], [0.25, 0.5, 0.75])
-    match_qs = np.quantile(match, [0.25, 0.5, 0.75])
-    nind_qs = np.quantile(masked['unique_ind'], [0.25, 0.5, 0.75])
-    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [mask.sum()]
+    time_qs = np.quantile(masked['time'], [0.25, 0.75])
+    match_qs = np.quantile(match, [0.25, 0.75])
+    nind_qs = np.quantile(masked['unique_ind'], [0.25, 0.75])
+    precision = (masked['ind']/masked['tests']).mean()
+    overhead = (masked['tests'] / masked['unique_ind']).mean()
+    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [precision, overhead, mask.sum()]
 
 
 def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame], findq_subset: Iterable = None,
@@ -122,5 +123,5 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
         rows.append([f'FindQ {grow}', lambd, np.clip(1 - alpha * gamma, 0., 1.)] + compute_stats(v, ('bootstrap_alpha', alpha)))
 
     return pandas.DataFrame(
-        rows, columns=['Method', 'Lambda', 'Gamma', 'Time Q1', 'Time Q2', 'Time Q3', 'Match Q1', 'Match Q2', 'Match Q3', 'Card Q1', 'Card Q2', 'Card Q3', 'N']
+        rows, columns=['Method', 'Lambda', 'Gamma', 'Time Q1', 'Time Q3', 'Match Q1', 'Match Q3', 'Card Q1', 'Card Q3', 'Precision', 'Overhead', 'N']
     ).sort_values(['Method', 'Lambda', 'Gamma'])
