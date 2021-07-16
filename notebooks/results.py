@@ -34,9 +34,12 @@ def load_results(run_ids: Union[List[str], str], basedir: str = os.path.join(not
     
     for run_id in run_ids:    
         tar = tarfile.open(os.path.join(basedir, f'{run_id}.tgz'))
-        find2 = pandas.read_csv(tar.extractfile(f'{run_id}/find2.csv'))
-        find2.dropna(0, inplace=True, how='any')
-        all_find2.append(find2)
+        try:
+            find2 = pandas.read_csv(tar.extractfile(f'{run_id}/find2.csv'))
+            find2.dropna(0, inplace=True, how='any')
+            all_find2.append(find2)
+        except KeyError:
+            pass
         for m in tar.getnames():
             filename = os.path.basename(m)
             if filename.startswith('findg'):
