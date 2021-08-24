@@ -1,5 +1,6 @@
 from typing import Union, Tuple, Any, Mapping, Iterable
 
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
@@ -7,6 +8,12 @@ from matplotlib import cm, gridspec
 from matplotlib.colors import Colormap, LinearSegmentedColormap
 
 discrete_grays = LinearSegmentedColormap.from_list('DiscreteGrays', [(0.5, 0.5, 0.5), (0.0, 0.0, 0.0)], N=5)
+
+
+def readable_key(Lambda, gamma, grow):
+    if gamma == 1:
+        return f'$\\Lambda={Lambda}$ $\\gamma=1-\\alpha$ {"grow" if grow else ""}'
+    return f'$\\Lambda={Lambda}$ $\\gamma=1-{gamma}\\alpha$ {"grow" if grow else ""}'
 
 
 def plot_violin(df: pandas.DataFrame, key: str, color: Union[str, Tuple], group_by: str, ax: plt.Axes = None):
@@ -106,10 +113,10 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
     ax_tests.set_ylabel('Tests')
     ax_tests.set_yscale('log')
     ax_tests.yaxis.grid(True)
-    
+
     ax_uind = fig.add_subplot(grid[3 * ncolumns])
     plot_violin(find2, 'unique_ind', color=sm.to_rgba(0), group_by='bootstrap_alpha', ax=ax_uind)
-    ax_uind.set_ylabel('Unique IND')
+    ax_uind.set_ylabel('Unique EDD')
     ax_uind.set_xlabel('Initial $\\alpha$')
     ax_uind.yaxis.grid(True)
 
@@ -120,10 +127,7 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
 
         axt = fig.add_subplot(grid[i], sharex=ax_time, sharey=ax_time)
         plot_violin(data, 'time', color=color, group_by='bootstrap_alpha', ax=axt)
-        if gamma == 1:
-            axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-\\alpha$ grow={grow}')
-        else:
-            axt.set_title(f'$\\Lambda={lambd}$ $\\gamma=1-{gamma}\\alpha$ grow={grow}')
+        axt.set_title(readable_key(lambd, gamma, grow))
         plt.setp(axt.get_yticklabels(), visible=False)
         axt.yaxis.grid(True)
 
@@ -137,16 +141,110 @@ def plot_comparison(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFram
         axtt.yaxis.grid(True)
         plt.setp(axtt.get_yticklabels(), visible=False)
         axtt.set_xlabel('Initial $\\alpha$')
-        
-        
+
         axni = fig.add_subplot(grid[3 * ncolumns + i], sharey=ax_uind, sharex=ax_uind)
         plot_violin(data, 'unique_ind', color=color, group_by='bootstrap_alpha', ax=axni)
         axni.yaxis.grid(True)
         plt.setp(axni.get_yticklabels(), visible=False)
         axni.set_xlabel('Initial $\\alpha$')
-        
 
-    #fig.suptitle(f'{max_ind_column}')
-    fig.tight_layout()
-    fig.align_ylabels([ax_time, ax_nind, ax_tests, ax_uind])
+        # fig.suptitle(f'{max_ind_column}')
+        fig.tight_layout()
+        fig.align_ylabels([ax_time, ax_nind, ax_tests, ax_uind])
+    return fig
+
+
+def bootstrap_samples_mean(data: pandas.DataFrame, size: int = None, samples: int = 1000):
+    """
+    Compute the samples mean via bootstrapping
+    """
+    if size is None:
+        size = len(data)
+    samples = [np.random.choice(data, size=size, replace=True) for _ in range(samples)]
+    return np.mean(samples, axis=1)
+
+
+def _plot_error(ax: plt.Axes, i: int, data: pandas.DataFrame, sm, ref, **kwargs):
+    ref_sample = bootstrap_samples_mean(ref)
+    sample = 100 * ((bootstrap_samples_mean(data) - ref_sample) / ref_sample)
+    avg, std = np.average(sample), 1.96 * np.std(sample)
+    ax.errorbar([i], [avg], yerr=std, fmt='o', capsize=10, color=sm.to_rgba(i), **kwargs)
+    ax.set_xticks([])
+    ax.yaxis.set_major_formatter('{x:.0f} %')
+    for l in ax.get_yticklabels():
+        l.set_fontsize(12)
+
+
+def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame],
+                   findq_subset: Iterable = None, max_ind_column: str = None, fig: plt.Figure = None,
+                   alphas=[0.05, 0.10, 0.15], title=None):
+    if title is None:
+        title = 'Distribution of the samples mean'
+    if not max_ind_column:
+        for c in find2.columns:
+            if c.startswith('max_'):
+                max_ind_column = c
+                break
+    if not max_ind_column:
+        raise KeyError('Could not figure out the column with the maximum arity found')
+    if fig is None:
+        fig = plt.figure(figsize=(18, 2.5 * len(alphas)))
+
+    sm = cm.ScalarMappable(cmap='Dark2', norm=plt.Normalize(vmin=0, vmax=len(findq_subset) + 1))
+
+    # Ratios
+    ratio_f2 = find2[max_ind_column] / find2['exact']
+
+    # Figure grid
+    grid = gridspec.GridSpec(nrows=len(alphas), ncols=4)# hspace=0)
+
+    ax_ratio = ax_time = None
+
+    # For each alpha
+    for ia, alpha in enumerate(alphas):
+        # Axes
+        ax_ratio = fig.add_subplot(grid[ia, 0], sharex=ax_ratio)
+        ax_nind = fig.add_subplot(grid[ia, 1], sharex=ax_ratio)
+        ax_tests = fig.add_subplot(grid[ia, 2], sharex=ax_ratio)
+        ax_time = fig.add_subplot(grid[ia, 3], sharex=ax_ratio)
+
+        for ax in [ax_ratio, ax_nind, ax_tests, ax_time]:
+            ax.axhline(0, linestyle='--', c='red')
+
+        f2mask = find2['bootstrap_alpha'] == alpha
+        fqmask = dict()
+        for k in findq_subset:
+            fqmask[k] = findq[k]['bootstrap_alpha'] == alpha
+
+        ref_ratio = ratio_f2[f2mask]
+        ref_time = find2['time'][f2mask]
+        ref_tests = find2['tests'][f2mask]
+        ref_unique = find2['unique_ind'][f2mask]
+
+        # For each findq parametrization
+        markers = itertools.cycle(['o', 's', 'D', '*'])
+        for i, k in enumerate(findq_subset, start=1):
+            marker = next(markers)
+            v = findq[k][fqmask[k]]
+            label = readable_key(*k)
+            _plot_error(ax_ratio, i, v[max_ind_column] / v['exact'], sm, ref=ref_ratio, label=label, marker=marker)
+            _plot_error(ax_time, i, v['time'], sm, ref=ref_time, marker=marker)
+            _plot_error(ax_tests, i, v['tests'], sm, ref=ref_tests, marker=marker)
+            _plot_error(ax_nind, i, v['unique_ind'], sm, ref=ref_unique, marker=marker)
+            
+        ax_ratio.set_ylabel(f'$\\alpha = {alpha}$')
+
+        if ia == 0:
+            ax_ratio.legend()
+            ax_ratio.set_title('Ratio')
+            ax_ratio.title.set_fontsize(18)
+            ax_time.set_title('Time')
+            ax_time.title.set_fontsize(18)
+            ax_tests.set_title('Tests')
+            ax_tests.title.set_fontsize(18)
+            ax_nind.set_title('Unique EDD')
+            ax_nind.title.set_fontsize(18)
+            #ax_ratio.set_xlim(0.5, len(findq_subset) + 0.5)
+
+    fig.tight_layout(w_pad=1, h_pad=0)
     return fig
