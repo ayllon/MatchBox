@@ -37,7 +37,8 @@ def load_csv(path: str, ncols: int) -> DataFrame:
 _loaders = {
     '.fits': load_fits,
     '.dat': parse_keel_file,
-    '.csv': load_csv
+    '.csv': load_csv,
+    '.data': load_csv,
 }
 
 

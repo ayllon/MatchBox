@@ -238,7 +238,10 @@ class Find2(object):
             Maximal IND
         """
         ks = len(uind)
-        start_arity, G = self.generate_graph(uind)
+        try:
+            start_arity, G = self.generate_graph(uind)
+        except StopIteration:
+            return frozenset()
 
         _logger.info('Looking for hypercliques')
         H = find_hypercliques(G)

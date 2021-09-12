@@ -377,7 +377,10 @@ class FindGamma(object):
             Maximal IND
         """
         ks = len(uind)
-        start_arity, G = self.generate_graph(uind)
+        try:
+            start_arity, G = self.generate_graph(uind)
+        except StopIteration:
+            return frozenset()
 
         _logger.info('Looking for %.2f / %.2f quasi hypercliques with %d edges', self.__lambda, self.__gamma, len(G.E))
         H = find_quasicliques(G, self.__lambda, self.__gamma, self.__grow)
