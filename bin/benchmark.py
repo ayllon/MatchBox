@@ -229,6 +229,8 @@ def define_arguments() -> ArgumentParser:
                         help='Repeat the test these number of times')
     parser.add_argument('--no-find2', action='store_true',
                         help='Do not run Find2')
+    parser.add_argument('--no-grow', action='store_true',
+                        help='Do not run with growing stage')
     parser.add_argument('data', metavar='DATA', nargs='+', help='Dataset')
     return parser
 
@@ -313,7 +315,11 @@ def main():
             logger.warning('Skipping Find2 run')
 
         # Benchmark findg
-        for lambd, gamma, grow in itertools.product(args.lambdas, args.gammas, [True, False]):
+        grow_flags = [False]
+        if not args.no_grow:
+            grow_flags.append(True)
+
+        for lambd, gamma, grow in itertools.product(args.lambdas, args.gammas, grow_flags):
             # This combination is too lax, anything would be accepted
             if lambd <= 0 and gamma >= 100:
                 continue
