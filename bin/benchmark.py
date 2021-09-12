@@ -183,9 +183,9 @@ def run_finder(Finder: Type, alpha: float,
         # Save all ind
         with open(os.path.join(nind_dir, 'nind.txt'), 'wt') as fd:
             for i in unique_nind:
-                print(i.arity, str(i), file=fd)
+                print(f'{i.arity} {i.confidence:.2f} {i}', file=fd)
 
-    result = pandas.DataFrame(results)
+    result = pandas.DataFrame.from_dict(results, orient='index').T
     csv_path = os.path.join(output_dir, csv_name)
     with FileLock(csv_path + '.lock'):
         result.to_csv(csv_path, mode='a', index=False, header=not os.path.exists(csv_path))
@@ -229,8 +229,7 @@ def define_arguments() -> ArgumentParser:
                         help='Repeat the test these number of times')
     parser.add_argument('--no-find2', action='store_true',
                         help='Do not run Find2')
-    parser.add_argument('data1', metavar='DATA1', help='Dataset 1')
-    parser.add_argument('data2', metavar='DATA2', help='Dataset 2')
+    parser.add_argument('data', metavar='DATA', nargs='+', help='Dataset')
     return parser
 
 
@@ -254,7 +253,7 @@ def main():
 
     # Fill defaults
     if not args.id:
-        args.id = os.path.basename(args.data1) + '_' + os.path.basename(args.data2)
+        args.id = '_'.join(map(os.path.basename, args.data))
     output_dir = os.path.join(args.output_dir, args.id)
     logger.info(f'Using output directory {output_dir}')
 
@@ -266,7 +265,7 @@ def main():
     test_method = knn_test
 
     # Load datasets
-    datasets = load_datasets([args.data1, args.data2], ncols=args.columns)
+    datasets = load_datasets(args.data, ncols=args.columns)
 
     # We draw different samples each time, so we need to restart from the beginning,
     # but at least we avoid re-loading the datasets
