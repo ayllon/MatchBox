@@ -42,6 +42,31 @@ _loaders = {
 }
 
 
+def unambiguous_names(paths: List[str], nparents: int = 0) -> List[str]:
+    """
+    Given a list of dataset paths, return a list of unambiguous identifiers.
+    For instance if two datasets share the filename, the parent path will be used to disambiguate.
+
+    Parameters
+    ----------
+    paths : list of strings
+        Paths to the datasets
+    nparents : int
+        Number of parents to use to disambiguate
+
+    Returns
+    -------
+    out : List of unambiguous names
+    """
+    names = list()
+    for path in paths:
+        names.append(os.path.join(*path.split(os.sep)[-nparents - 1:]))
+
+    if len(set(names)) == len(paths):
+        return names
+    return unambiguous_names(paths, nparents + 1)
+
+
 def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column') -> List[Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
@@ -60,7 +85,8 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
     out : List of tuples (name, dataframe)
     """
     dataframes = []
-    for path in paths:
+    names = unambiguous_names(paths)
+    for path, name in zip(paths, names):
         logger.info('Loading %s', path)
         ext = os.path.splitext(path)[1]
         df = _loaders[ext](path, ncols)
@@ -70,7 +96,6 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
                     df.dropna(axis=1, how='all', inplace=True)
                 if filter_nan in ['row', 'both']:
                     df.dropna(axis=0, how='any', inplace=True)
-        name = os.path.basename(path)
         logger.info('\t%d columns loaded', len(df.columns))
         dataframes.append((name, df))
     return dataframes
