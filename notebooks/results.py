@@ -1,5 +1,5 @@
 import os
-import tarfile
+import zipfile
 from typing import Tuple, Any, Mapping, Iterable, Union, List, Dict
 
 import numpy as np
@@ -8,10 +8,10 @@ import pandas
 notebook_dir = os.path.dirname(__file__)
 
 
-def read_nind(tar: tarfile.TarFile, run_id: str, ids: Iterable[str], out: List[str]):
+def read_nind(zip: zipfile.ZipFile, run_id: str, ids: Iterable[str], out: Dict[int, List[str]]):
     for id in ids:
         path = os.path.join(run_id, id[:2], id, 'nind.txt')
-        for line in tar.extractfile(path):
+        for line in zip.open(path):
             arity, ind = line.decode('utf-8').split(' ', maxsplit=1)
             arity = int(arity)
             if ind[0].isdigit():
@@ -31,9 +31,11 @@ def load_results(run_ids: Union[List[str], str],
     Parameters
     ----------
     run_ids : str or list of strings
-        Run identifiers, which is the name of the tgz without the extension
+        Run identifiers, which is the name of the zip without the extension
     basedir : str
         Directory where the results are stored
+    return_inds : bool
+        If True, return also the found IND
 
     Returns
     -------
@@ -51,16 +53,16 @@ def load_results(run_ids: Union[List[str], str],
     findq_inds = {}
 
     for run_id in run_ids:
-        tar = tarfile.open(os.path.join(basedir, f'{run_id}.tgz'))
+        zip = zipfile.ZipFile(os.path.join(basedir, f'{run_id}.zip'))
         try:
-            find2 = pandas.read_csv(tar.extractfile(f'{run_id}/find2.csv'))
+            find2 = pandas.read_csv(zip.open(f'{run_id}/find2.csv'))
             find2.dropna(0, inplace=True, how='any')
             all_find2.append(find2)
             if return_inds:
-                read_nind(tar, run_id, find2['id'], out=find2_inds)
+                read_nind(zip, run_id, find2['id'], out=find2_inds)
         except KeyError:
             pass
-        for m in tar.getnames():
+        for m in zip.namelist():
             filename = os.path.basename(m)
             if filename.startswith('findg'):
                 name = os.path.splitext(filename)[0]
@@ -75,9 +77,9 @@ def load_results(run_ids: Union[List[str], str],
                     all_findq[key] = []
                     findq_inds[key] = {}
                 try:
-                    all_findq[key].append(pandas.read_csv(tar.extractfile(f'{m}')))
+                    all_findq[key].append(pandas.read_csv(zip.open(f'{m}')))
                     if return_inds:
-                        read_nind(tar, run_id, all_findq[key][-1]['id'], out=findq_inds[key])
+                        read_nind(zip, run_id, all_findq[key][-1]['id'], out=findq_inds[key])
                 except Exception as e:
                     raise RuntimeError(f'Failed to parse {m}: {e}')
 
@@ -176,7 +178,7 @@ def parse_fields(ind: str) -> Tuple[str, List[str]]:
     Parse a LHS or RHS, into a pair relation name, list of attributes
     """
     dataset, rest = ind.split('::')
-    fields = rest[1:-1].split(', ')
+    fields = rest[1:-1].strip().split(', ')
     return dataset.strip(), fields
 
 
