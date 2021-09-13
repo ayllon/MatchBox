@@ -9,7 +9,7 @@ import uuid
 import warnings
 from argparse import ArgumentParser
 from functools import reduce
-from typing import List, Tuple, Set, Callable, Type, Iterable
+from typing import List, Tuple, Set, Callable, Type, Iterable, FrozenSet
 
 import numpy as np
 import pandas
@@ -102,7 +102,8 @@ def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callabl
     return inds
 
 
-def run_finder(Finder: Type, alpha: float,
+def run_finder(Finder: Type, cross_datasets: List[Tuple[str, str]],
+               alpha: float,
                bootstrap_arity: int, bootstrap_ind: Set[Ind], bootstrap_alphas: Iterable[float],
                exact: int, test_method: Callable, test_args: dict,
                output_dir: str, csv_name: str,
@@ -114,6 +115,8 @@ def run_finder(Finder: Type, alpha: float,
     ----------
     Finder : Type
         Type of the finder (i.e. Find2)
+    cross_datasets : List of dataset name pairs
+        Needed to generate the output
     alpha : float
         Significance level for the statistical test used to validate the n-IND candidates
     bootstrap_arity :
@@ -138,6 +141,8 @@ def run_finder(Finder: Type, alpha: float,
     results = {
         'id': [], 'exact': [], 'bootstrap_alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': []
     }
+    for cd in cross_datasets:
+        results[f'max_{cd[0]}_{cd[1]}'] = list()
 
     finder_name = Finder.__name__
 
@@ -167,10 +172,12 @@ def run_finder(Finder: Type, alpha: float,
         results['unique_ind'].append(len(unique_nind))
 
         max_inds = find_max_arity_per_pair(unique_nind)
-        for pair, ind in max_inds.items():
-            if f'max_{pair}' not in results:
-                results[f'max_{pair}'] = list()
-            results[f'max_{pair}'].append(ind.arity)
+        for cd in cross_datasets:
+            key = frozenset(cd)
+            if key in max_inds:
+                results[f'max_{cd[0]}_{cd[1]}'].append(max_inds[key].arity)
+            else:
+                results[f'max_{cd[0]}_{cd[1]}'].append(None)
 
         nind_dir = os.path.join(output_dir, run_id[:2], run_id)
         os.makedirs(nind_dir)
@@ -185,7 +192,7 @@ def run_finder(Finder: Type, alpha: float,
             for i in unique_nind:
                 print(f'{i.arity} {i.confidence:.2f} {i}', file=fd)
 
-    result = pandas.DataFrame.from_dict(results, orient='index').T
+    result = pandas.DataFrame(results)
     csv_path = os.path.join(output_dir, csv_name)
     with FileLock(csv_path + '.lock'):
         result.to_csv(csv_path, mode='a', index=False, header=not os.path.exists(csv_path))
@@ -269,6 +276,10 @@ def main():
     # Load datasets
     datasets = load_datasets(args.data, ncols=args.columns)
 
+    # Dataset combinations, required to be deterministic between runs regardless of the result
+    dataset_names = [d[0] for d in datasets]
+    cross_datasets = list(map(tuple, itertools.combinations(dataset_names, 2)))
+
     # We draw different samples each time, so we need to restart from the beginning,
     # but at least we avoid re-loading the datasets
     for i in range(1, args.repeat + 1):
@@ -306,7 +317,7 @@ def main():
         # Benchmark find2
         if not args.no_find2:
             run_finder(
-                Find2, alpha=args.nind_alpha,
+                Find2, cross_datasets=cross_datasets, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name='find2.csv'
@@ -325,7 +336,7 @@ def main():
                 continue
             logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha, grow=%d', lambd, gamma, grow)
             run_finder(
-                FindGamma, alpha=args.nind_alpha,
+                FindGamma, cross_datasets=cross_datasets, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}_{grow:d}.csv',

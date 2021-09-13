@@ -192,7 +192,7 @@ def find_max_arity_per_pair(inds: Iterable[Ind]) -> Mapping[str, int]:
     """
     max_arity = dict()
     for ind in inds:
-        key = ind.lhs.relation_name + '_' + ind.rhs.relation_name
+        key = frozenset({ind.lhs.relation_name, ind.rhs.relation_name})
         if key not in max_arity:
             max_arity[key] = ind
             continue
