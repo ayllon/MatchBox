@@ -56,7 +56,7 @@ def load_results(run_ids: Union[List[str], str],
         zip = zipfile.ZipFile(os.path.join(basedir, f'{run_id}.zip'))
         try:
             find2 = pandas.read_csv(zip.open(f'{run_id}/find2.csv'))
-            find2.dropna(0, inplace=True, how='any')
+            find2.fillna(0, inplace=True)
             all_find2.append(find2)
             if return_inds:
                 read_nind(zip, run_id, find2['id'], out=find2_inds)
@@ -77,7 +77,9 @@ def load_results(run_ids: Union[List[str], str],
                     all_findq[key] = []
                     findq_inds[key] = {}
                 try:
-                    all_findq[key].append(pandas.read_csv(zip.open(f'{m}')))
+                    findq = pandas.read_csv(zip.open(f'{m}'))
+                    findq.fillna(0, inplace=True)
+                    all_findq[key].append(findq)
                     if return_inds:
                         read_nind(zip, run_id, all_findq[key][-1]['id'], out=findq_inds[key])
                 except Exception as e:
@@ -163,11 +165,13 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
     ).sort_values(['Method', 'Lambda', 'Gamma'])
 
 
-def most_frequent_highest(inds: Dict[int, List[str]], topn: int = 1) -> List[str]:
+def most_frequent_highest(inds: Dict[int, List[str]], topn: int = 1, max_ind: int = None) -> List[str]:
     """
     Return the topn most frequent, highest, arity IND
     """
-    highest = inds[max(inds.keys())]
+    if max_ind is None:
+        max_ind = max(inds.keys())
+    highest = inds[max_ind]
     ind, count = np.unique(highest, return_counts=True)
     top = np.flip(count.argsort())
     return list(ind[top[:topn]])
@@ -178,15 +182,16 @@ def parse_fields(ind: str) -> Tuple[str, List[str]]:
     Parse a LHS or RHS, into a pair relation name, list of attributes
     """
     dataset, rest = ind.split('::')
-    fields = rest[1:-1].strip().split(', ')
+    fields = rest.strip()[1:-1].split(', ')
     return dataset.strip(), fields
 
 
-def pretty_highest_ind(inds: Dict[int, List[str]], topn: int = 1) -> Union[List[pandas.DataFrame], pandas.DataFrame]:
+def pretty_highest_ind(inds: Dict[int, List[str]], topn: int = 1, max_ind: int = None) -> Union[
+    List[pandas.DataFrame], pandas.DataFrame]:
     """
     Return a list of (or a single) pandas DataFrame containing the topn most frequent, highest arity, IND found
     """
-    mo = most_frequent_highest(inds, topn)
+    mo = most_frequent_highest(inds, topn, max_ind)
     dfs = []
     for m in mo:
         lhs, rhs = m.split('⊆')
@@ -194,6 +199,6 @@ def pretty_highest_ind(inds: Dict[int, List[str]], topn: int = 1) -> Union[List[
         rds, dattr = parse_fields(rhs)
         tab = list(zip(lattr, dattr))
         df = pandas.DataFrame(tab, columns=[lds, rds])
-        df.sort_values(by=1, axis='columns', inplace=True)
+        df.sort_values(by=0, axis='columns', inplace=True)
         dfs.append(df)
     return dfs if topn > 1 else dfs[0]

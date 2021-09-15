@@ -164,7 +164,7 @@ def bootstrap_samples_mean(data: pandas.DataFrame, size: int = None, samples: in
     return np.mean(samples, axis=1)
 
 
-def _plot_error(ax: plt.Axes, i: int, data: pandas.DataFrame, sm, ref, **kwargs):
+def plot_confidence(ax: plt.Axes, i: int, data: pandas.DataFrame, sm, ref, **kwargs):
     ref_sample = bootstrap_samples_mean(ref)
     sample = 100 * ((bootstrap_samples_mean(data) - ref_sample) / ref_sample)
     avg, std = np.average(sample), 1.96 * np.std(sample)
@@ -227,11 +227,11 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
             marker = next(markers)
             v = findq[k][fqmask[k]]
             label = readable_key(*k)
-            _plot_error(ax_ratio, i, v[max_ind_column] / v['exact'], sm, ref=ref_ratio, label=label, marker=marker)
-            _plot_error(ax_time, i, v['time'], sm, ref=ref_time, marker=marker)
-            _plot_error(ax_tests, i, v['tests'], sm, ref=ref_tests, marker=marker)
-            _plot_error(ax_nind, i, v['unique_ind'], sm, ref=ref_unique, marker=marker)
-            
+            plot_confidence(ax_ratio, i, v[max_ind_column] / v['exact'], sm, ref=ref_ratio, label=label, marker=marker)
+            plot_confidence(ax_time, i, v['time'], sm, ref=ref_time, marker=marker)
+            plot_confidence(ax_tests, i, v['tests'], sm, ref=ref_tests, marker=marker)
+            plot_confidence(ax_nind, i, v['unique_ind'], sm, ref=ref_unique, marker=marker)
+
         ax_ratio.set_ylabel(f'$\\alpha = {alpha}$')
 
         if ia == 0:
