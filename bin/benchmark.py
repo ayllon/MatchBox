@@ -311,7 +311,7 @@ def main():
         if args.write_dot:
             graph_dot_file = os.path.join(output_dir, f'{args.bootstrap_arity}-graph.dot')
             bootstrap_graph, _ = generate_graph(initial_ind)
-            to_dot_file(bootstrap_graph.E, graph_dot_file)
+            to_dot_file(bootstrap_graph, graph_dot_file)
             logger.info('Initial graph written to %s', graph_dot_file)
 
         # Benchmark find2
