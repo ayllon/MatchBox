@@ -125,53 +125,32 @@ def grow_clique(G: Graph, K: FrozenSet, gamma: float, Lambda: float,
     _, lambda_min_degree = compute_thresholds(G.rank, len(K) + 1, -1, Lambda, gamma)
 
     # We can remove all v that do not satisfy the threshold
-    remove_set = set()
-    uno = 0
-    deg = 0
+    children = dict()
     for v in Candidates:
-        affected = G_connected[v].intersection(K)
-        # Uno, lemma 2
-        if len(affected) < gamma_degree_min:
-            remove_set.add(v)
-            uno += 1
-        # Custom
-        elif len(affected) < lambda_min_degree:
-            remove_set.add(v)
-            deg += 1
-    Candidates.difference_update(remove_set)
+        # Graph induced by K U {v}
+        G_candidate = induced_subgraph(G, K.union({v}))
+        # Degree of v
+        K_degrees = get_degrees(G_candidate)
+        v_degree = K_degrees[v]
+        # Uno, lemma 2, adapted to k > 2, plus custom condition
+        if v_degree >= gamma_degree_min and v_degree >= lambda_min_degree:
+            children[v] = K_degrees
 
     # See Uno 2010, page 10
-    for v in Candidates:
-        # Elements in K that are connected to v
-        affected = G_connected[v].intersection(K)
-        # The degree of v on the induced subgraph is just the number of connected edges
-        K_degrees[v] = len(affected)
-        # Since we are adding a new vertex, update the degree of the other connected vertices
-        for a in affected:
-            K_degrees[a] = K_degrees.get(a, 0) + 1
-
+    for v, K_degrees in children.items():
         # We have removed all candidates with a low degree, so no need to re-check the degree of v
         # We need to check if we grow following this one, would it be v*?
         # Only taking into account candidates, since we grow from a seed, we need to consider all vertex
         # from the initial clique as if they were precedent
         v_star = [p[0] for p in sorted(K_degrees.items(), key=lambda pair: (pair[1], pair[0])) if p[0] not in Seed][0]
-        _, min_degree = compute_thresholds(G.rank, len(K) + 1, edge_count + len(affected), Lambda, gamma)
+        _, min_degree = compute_thresholds(G.rank, len(K) + 1, edge_count + K_degrees[v], Lambda, gamma)
         if v == v_star:
-            if min_degree <= len(G_connected[v]):
+            if min_degree <= K_degrees[v]:
                 nested = grow_clique(
                     G, K.union({v}), gamma, Lambda,
-                    Seed, Candidates.difference({v}), G_connected, K_degrees, edge_count + len(affected)
+                    Seed, Candidates.difference({v}), G_connected, K_degrees, edge_count + K_degrees[v]
                 )
                 result.update(nested)
-        # Undo counting update for the next iteration
-        for a in affected:
-            K_degrees[a] -= 1
-            if K_degrees[a] == 0:
-                del K_degrees[a]
-        # v will be deleted when K is the empty set
-        if v in K_degrees:
-            del K_degrees[v]
-
     result.add(frozenset(K))
     return frozenset(result)
 
@@ -290,17 +269,16 @@ def find_quasicliques(G: Graph, lambd: float, gamma: float, grow: bool) -> Froze
         if any(map(seed.issubset, result)):
             continue
         # Apply the growing step
-        _logger.debug('Growing from %d vertices', len(seed))
+        _logger.info('Growing from %d vertices', len(seed))
         Sg = grow_clique(G, seed, gamma=gamma, Lambda=lambd)
-        _logger.debug('Expanded %d vertices into %d candidates', len(seed), len(Sg))
+        _logger.info('Expanded %d vertices into %d candidates', len(seed), len(Sg))
         # Again, sort by cardinality, highest first
         Sg = sorted(Sg, key=len, reverse=True)
         for S in Sg:
             if is_quasi_clique(G, S, lambd, gamma):
                 if not any(map(S.issubset, result)):
-                    _logger.debug('Got a positive with %d vertices from an initial seed of %d', len(S), len(seed))
+                    _logger.info('Got a positive with %d vertices from an initial seed of %d', len(S), len(seed))
                     result.add(Edge(S))
-
     return result
 
 

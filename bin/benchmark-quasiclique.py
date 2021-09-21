@@ -109,7 +109,7 @@ def measure(clique: FrozenSet, G: Graph, finder: Callable[..., FrozenSet[Edge]],
     try:
         quasi_cliques = finder(G, **kwargs)
         signal.alarm(0)
-    except TimeoutError:
+    except (TimeoutError, TypeError):
         logger.warning('Measurement timeout')
         return np.nan, np.nan
 
