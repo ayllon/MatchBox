@@ -97,8 +97,9 @@ def measure(clique: FrozenSet, G: Graph, finder: Callable[..., FrozenSet[Edge]],
 
     Returns
     -------
-    out : tuple(float, float)
-        Elapsed time (in seconds), relative size of the found clique wrt the parameter clique
+    out : tuple(float, float, float)
+        Elapsed time (in seconds), relative size of the intersection, relative size of the difference (for the best
+        match)
     """
     logger.info('Measuring %s', finder.__name__)
     if timeout:
@@ -116,14 +117,11 @@ def measure(clique: FrozenSet, G: Graph, finder: Callable[..., FrozenSet[Edge]],
     end = time.perf_counter()
     elapsed = end - start
 
-    max_ratio = 0.
+    jaccard = 0.
     for q in quasi_cliques:
-        if q.issuperset(clique) or clique.issuperset(q):
-            ratio = len(q) / len(clique)
-            if ratio > max_ratio:
-                max_ratio = ratio
+        jaccard = max(jaccard, len(q.intersection(clique)) / len(q.union(clique)))
 
-    return elapsed, max_ratio
+    return elapsed, jaccard
 
 
 def define_arguments() -> ArgumentParser:
@@ -192,9 +190,9 @@ def main():
     # Output
     df = dict(
         rank=[], clique=[], order=[], size=[], missing=[], added=[],
-        find2_time=[], find2_ratio=[],
-        findq_time=[], findq_ratio=[],
-        findqg_time=[], findqg_ratio=[],
+        find2_time=[], find2_jaccard=[],
+        findq_time=[], findq_jaccard=[],
+        findqg_time=[], findqg_jaccard=[],
     )
 
     # For each pass
@@ -220,25 +218,25 @@ def main():
             df['added'].append(args.extra_edges)
 
             # Measure Find2
-            f2_time, f2_ratio = measure(clique, G, find_hypercliques, timeout=args.timeout)
+            find2_jaccard, find2_jaccard = measure(clique, G, find_hypercliques, timeout=args.timeout)
 
             # Measure FindQ
-            fq_time, fq_ratio = measure(
+            findq_time, findq_jaccard = measure(
                 clique, G, find_quasicliques, timeout=args.timeout,
                 lambd=args.Lambda, gamma=1 - args.missing_edges, grow=False)
 
             # Measure FindQ with growing stage
-            fqg_time, fqg_ratio = measure(
+            findqg_time, findqg_jaccard = measure(
                 clique, G, find_quasicliques, timeout=args.timeout,
                 lambd=args.Lambda, gamma=1 - args.missing_edges, grow=True)
 
             # Add result
-            df['find2_time'].append(f2_time)
-            df['find2_ratio'].append(f2_ratio)
-            df['findq_time'].append(fq_time)
-            df['findq_ratio'].append(fq_ratio)
-            df['findqg_time'].append(fqg_time)
-            df['findqg_ratio'].append(fqg_ratio)
+            df['find2_time'].append(find2_jaccard)
+            df['find2_jaccard'].append(find2_jaccard)
+            df['findq_time'].append(findq_time)
+            df['findq_jaccard'].append(findq_jaccard)
+            df['findqg_time'].append(findqg_time)
+            df['findqg_jaccard'].append(findqg_jaccard)
 
         # Write
         if args.output:
