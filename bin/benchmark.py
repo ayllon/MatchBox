@@ -3,6 +3,7 @@
 import itertools
 import logging
 import os
+import signal
 import sys
 import time
 import uuid
@@ -102,7 +103,11 @@ def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callabl
     return inds
 
 
-def run_finder(Finder: Type, cross_datasets: List[Tuple[str, str]],
+def _timeout_handler(signum: int, stack):
+    raise TimeoutError()
+
+
+def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]],
                alpha: float,
                bootstrap_arity: int, bootstrap_ind: Set[Ind], bootstrap_alphas: Iterable[float],
                exact: int, test_method: Callable, test_args: dict,
@@ -115,6 +120,8 @@ def run_finder(Finder: Type, cross_datasets: List[Tuple[str, str]],
     ----------
     Finder : Type
         Type of the finder (i.e. Find2)
+    timeout : int
+        Timeout in seconds
     cross_datasets : List of dataset name pairs
         Needed to generate the output
     alpha : float
@@ -138,8 +145,11 @@ def run_finder(Finder: Type, cross_datasets: List[Tuple[str, str]],
     kwargs_callback : Callable
         It can be used by the caller to adapt the parameters passed to the Finder
     """
+    signal.signal(signal.SIGALRM, _timeout_handler)
+
     results = {
-        'id': [], 'exact': [], 'bootstrap_alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': []
+        'id': [], 'exact': [], 'bootstrap_alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': [],
+        'timeout': []
     }
     for cd in cross_datasets:
         results[f'max_{cd[0]}_{cd[1]}'] = list()
@@ -157,8 +167,17 @@ def run_finder(Finder: Type, cross_datasets: List[Tuple[str, str]],
         )
 
         timing = Timing()
+        timeout_flag = False
         with timing:
-            nind = finder(selected_ind)
+            try:
+                if timeout:
+                    signal.alarm(timeout)
+                nind = finder(selected_ind)
+                signal.alarm(0)
+            except TimeoutError:
+                logger.warning('Measurement timeout')
+                nind = set()
+                timeout_flag = True
 
         unique_nind = unique_inds(nind)
 
@@ -170,6 +189,7 @@ def run_finder(Finder: Type, cross_datasets: List[Tuple[str, str]],
         results['tests'].append(counted_test.counter)
         results['ind'].append(len(nind))
         results['unique_ind'].append(len(unique_nind))
+        results['timeout'].append(timeout_flag)
 
         max_inds = find_max_arity_per_pair(unique_nind)
         for cd in cross_datasets:
@@ -238,6 +258,7 @@ def define_arguments() -> ArgumentParser:
                         help='Do not run Find2')
     parser.add_argument('--no-grow', action='store_true',
                         help='Do not run with growing stage')
+    parser.add_argument('--timeout', type=int, help='Timeout in seconds')
     parser.add_argument('data', metavar='DATA', nargs='+', help='Dataset')
     return parser
 
@@ -317,7 +338,7 @@ def main():
         # Benchmark find2
         if not args.no_find2:
             run_finder(
-                Find2, cross_datasets=cross_datasets, alpha=args.nind_alpha,
+                Find2, timeout=args.timeout, cross_datasets=cross_datasets, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name='find2.csv'
@@ -336,7 +357,7 @@ def main():
                 continue
             logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha, grow=%d', lambd, gamma, grow)
             run_finder(
-                FindGamma, cross_datasets=cross_datasets, alpha=args.nind_alpha,
+                FindGamma, timeout=args.timeout, cross_datasets=cross_datasets, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}_{grow:d}.csv',
