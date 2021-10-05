@@ -200,10 +200,12 @@ def compute_thresholds(k: int, n: int, e: int, Lambda: float, gamma: float) -> T
     # If we have ne = |E| edges and all are similar, the degree of a node
     # follows an hypergeometric distribution (i.e. if the clique has 108 out of 120 edges,
     # how likely is it to have only a degree of less than 10?)
+    max_degree = comb(n - 1, k - 1)
     if Lambda > 0:
-        max_degree = comb(n - 1, k - 1)
         h = hypergeom(max_cardinality, e, max_degree)
         min_degree = h.ppf(Lambda)
+    elif Lambda < 0:
+        min_degree = max_degree * abs(Lambda)
     else:
         min_degree = 0
 

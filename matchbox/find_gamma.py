@@ -238,7 +238,6 @@ def find_seeds(G: Graph, lambd: float, gamma: float) -> FrozenSet[Edge]:
     return frozenset(result)
 
 
-# TODO: Add option to disable growing
 def find_quasicliques(G: Graph, lambd: float, gamma: float, grow: bool) -> FrozenSet[Edge]:
     """
 
