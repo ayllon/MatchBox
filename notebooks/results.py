@@ -117,8 +117,12 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
         if c.startswith('max_'):
             max_ind_column = c
 
+    timeouts = data[(data[filter_by[0]] == filter_by[1])]['timeout']
     mask = (data[filter_by[0]] == filter_by[1]) & (data['exact'] > 0) & (data['ind'] > 0)
     masked = data[mask]
+
+    if not len(masked):
+        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, timeouts.sum()]
 
     match = (masked[max_ind_column] / masked['exact'])
     time_qs = np.quantile(masked['time'], [0.25, 0.75])
@@ -126,7 +130,8 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
     nind_qs = np.quantile(masked['unique_ind'], [0.25, 0.75])
     precision = (masked['ind'] / masked['tests']).mean()
     overhead = (masked['tests'] / masked['unique_ind']).mean()
-    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [precision, overhead, mask.sum()]
+
+    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [precision, overhead, mask.sum(), timeouts.sum()/len(timeouts)]
 
 
 def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame], findq_subset: Iterable = None,
@@ -161,7 +166,7 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
 
     return pandas.DataFrame(
         rows, columns=['Method', 'Lambda', 'Gamma', 'Time Q1', 'Time Q3', 'Match Q1', 'Match Q3', 'Card Q1', 'Card Q3',
-                       'Precision', 'Overhead', 'N']
+                       'Precision', 'Overhead', 'N', 'Timeouts']
     ).sort_values(['Method', 'Lambda', 'Gamma'])
 
 
