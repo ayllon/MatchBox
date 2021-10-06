@@ -10,8 +10,24 @@ from matplotlib.colors import Colormap, LinearSegmentedColormap
 discrete_grays = LinearSegmentedColormap.from_list('DiscreteGrays', [(0.5, 0.5, 0.5), (0.0, 0.0, 0.0)], N=5)
 
 
+class StyleCycler:
+    def __init__(self, markers, lines, colors):
+        self.markers = markers
+        self.lines = lines
+        self.colors = colors
+        
+    def __iter__(self):
+        m = itertools.cycle(self.markers)
+        l = itertools.cycle(self.lines)
+        c = self.colors()
+        while True:
+            yield next(m), next(l), next(c)['color']
+
+
 def readable_key(Lambda, gamma, grow):
-    if gamma == 1:
+    if gamma > 1:
+        return f'$\\Lambda={Lambda}$ $\\gamma=0$ {"grow" if grow else ""}'
+    elif gamma == 1:
         return f'$\\Lambda={Lambda}$ $\\gamma=1-\\alpha$ {"grow" if grow else ""}'
     return f'$\\Lambda={Lambda}$ $\\gamma=1-{gamma}\\alpha$ {"grow" if grow else ""}'
 
@@ -168,7 +184,7 @@ def plot_confidence(ax: plt.Axes, i: int, data: pandas.DataFrame, sm, ref, **kwa
     ref_sample = bootstrap_samples_mean(ref)
     sample = 100 * ((bootstrap_samples_mean(data) - ref_sample) / ref_sample)
     avg, std = np.average(sample), 1.96 * np.std(sample)
-    ax.errorbar([i], [avg], yerr=std, fmt='o', capsize=10, color=sm.to_rgba(i), **kwargs)
+    ax.errorbar([i], [avg], yerr=std, capsize=10, color=sm.to_rgba(i), **kwargs)
     ax.set_xticks([])
     ax.yaxis.set_major_formatter('{x:.0f} %')
     for l in ax.get_yticklabels():
@@ -192,6 +208,10 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
 
     sm = cm.ScalarMappable(cmap='Dark2', norm=plt.Normalize(vmin=0, vmax=len(findq_subset) + 1))
 
+    # Mask out exact == 0 and timeouts
+    e0mask = find2['exact'] > 0 & ~find2['timeout']
+    find2 = find2[e0mask]
+    
     # Ratios
     ratio_f2 = find2[max_ind_column] / find2['exact']
 
@@ -214,7 +234,7 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
         f2mask = find2['bootstrap_alpha'] == alpha
         fqmask = dict()
         for k in findq_subset:
-            fqmask[k] = findq[k]['bootstrap_alpha'] == alpha
+            fqmask[k] = (findq[k]['bootstrap_alpha'] == alpha) & (findq[k]['exact'] > 0)
 
         ref_ratio = ratio_f2[f2mask]
         ref_time = find2['time'][f2mask]
