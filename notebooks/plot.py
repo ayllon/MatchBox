@@ -246,14 +246,14 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
             v = findq[k][fqmask[k]]
             label = readable_key(*k)
             plot_confidence(ax_ratio, i, v[max_ind_column] / v['exact'], ref=ref_ratio, label=label, marker=marker, color=color)
-            plot_confidence(ax_time, i, v['time'], ref=ref_time, marker=marker, color=color)
-            plot_confidence(ax_tests, i, v['tests'], ref=ref_tests, marker=marker, color=color)
-            plot_confidence(ax_nind, i, v['unique_ind'], ref=ref_unique, marker=marker, color=color)
+            plot_confidence(ax_time, i, v['time'], ref=ref_time, label=label, marker=marker, color=color)
+            plot_confidence(ax_tests, i, v['tests'], ref=ref_tests, label=label, marker=marker, color=color)
+            plot_confidence(ax_nind, i, v['unique_ind'], ref=ref_unique, label=label, marker=marker, color=color)
 
         ax_ratio.set_ylabel(f'$\\alpha = {alpha}$')
 
         if ia == 0:
-            ax_ratio.legend()
+            ax_time.legend()
             ax_ratio.set_title('Ratio')
             ax_ratio.title.set_fontsize(18)
             ax_time.set_title('Time')

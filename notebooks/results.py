@@ -174,6 +174,8 @@ def most_frequent_highest(inds: Dict[int, List[str]], topn: int = 1, max_ind: in
     """
     Return the topn most frequent, highest, arity IND
     """
+    if not inds:
+        return []
     if max_ind is None:
         max_ind = max(inds.keys())
     highest = inds[max_ind]
