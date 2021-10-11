@@ -15,7 +15,7 @@ class StyleCycler:
         self.markers = markers
         self.lines = lines
         self.colors = colors
-        
+
     def __iter__(self):
         m = itertools.cycle(self.markers)
         l = itertools.cycle(self.lines)
@@ -180,13 +180,13 @@ def bootstrap_samples_mean(data: pandas.DataFrame, size: int = None, samples: in
     return np.mean(samples, axis=1)
 
 
-def plot_confidence(ax: plt.Axes, i: int, data: pandas.DataFrame, sm, ref, **kwargs):
+def plot_confidence(ax: plt.Axes, i: int, data: pandas.DataFrame, ref, **kwargs):
     ref_sample = bootstrap_samples_mean(ref)
     sample = 100 * ((bootstrap_samples_mean(data) - ref_sample) / ref_sample)
     avg, std = np.average(sample), 1.96 * np.std(sample)
-    ax.errorbar([i], [avg], yerr=std, capsize=10, color=sm.to_rgba(i), **kwargs)
+    ax.errorbar([i], [avg], yerr=std, capsize=10, **kwargs)
     ax.set_xticks([])
-    ax.yaxis.set_major_formatter('{x:.0f} %')
+    ax.yaxis.set_major_formatter('{x:.0f} \\%')
     for l in ax.get_yticklabels():
         l.set_fontsize(12)
 
@@ -206,19 +206,19 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
     if fig is None:
         fig = plt.figure(figsize=(18, 2.5 * len(alphas)))
 
-    sm = cm.ScalarMappable(cmap='Dark2', norm=plt.Normalize(vmin=0, vmax=len(findq_subset) + 1))
+    cycler = StyleCycler(['o', 's', 'D', '*'], ['--'],  plt.rcParams['axes.prop_cycle'])
 
     # Mask out exact == 0 and timeouts
     e0mask = find2['exact'] > 0 & ~find2['timeout']
     find2 = find2[e0mask]
-    
+
     # Ratios
     ratio_f2 = find2[max_ind_column] / find2['exact']
 
     # Figure grid
     grid = gridspec.GridSpec(nrows=len(alphas), ncols=4)# hspace=0)
 
-    ax_ratio = ax_time = None
+    ax_ratio = None
 
     # For each alpha
     for ia, alpha in enumerate(alphas):
@@ -234,7 +234,7 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
         f2mask = find2['bootstrap_alpha'] == alpha
         fqmask = dict()
         for k in findq_subset:
-            fqmask[k] = (findq[k]['bootstrap_alpha'] == alpha) & (findq[k]['exact'] > 0)
+            fqmask[k] = (findq[k]['bootstrap_alpha'] == alpha) & (findq[k]['exact'] > 0) & (~findq[k]['timeout'])
 
         ref_ratio = ratio_f2[f2mask]
         ref_time = find2['time'][f2mask]
@@ -242,15 +242,13 @@ def bootstrap_plot(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame
         ref_unique = find2['unique_ind'][f2mask]
 
         # For each findq parametrization
-        markers = itertools.cycle(['o', 's', 'D', '*'])
-        for i, k in enumerate(findq_subset, start=1):
-            marker = next(markers)
+        for (i, k), (marker, _, color) in zip(enumerate(findq_subset, start=1), cycler):
             v = findq[k][fqmask[k]]
             label = readable_key(*k)
-            plot_confidence(ax_ratio, i, v[max_ind_column] / v['exact'], sm, ref=ref_ratio, label=label, marker=marker)
-            plot_confidence(ax_time, i, v['time'], sm, ref=ref_time, marker=marker)
-            plot_confidence(ax_tests, i, v['tests'], sm, ref=ref_tests, marker=marker)
-            plot_confidence(ax_nind, i, v['unique_ind'], sm, ref=ref_unique, marker=marker)
+            plot_confidence(ax_ratio, i, v[max_ind_column] / v['exact'], ref=ref_ratio, label=label, marker=marker, color=color)
+            plot_confidence(ax_time, i, v['time'], ref=ref_time, marker=marker, color=color)
+            plot_confidence(ax_tests, i, v['tests'], ref=ref_tests, marker=marker, color=color)
+            plot_confidence(ax_nind, i, v['unique_ind'], ref=ref_unique, marker=marker, color=color)
 
         ax_ratio.set_ylabel(f'$\\alpha = {alpha}$')
 
