@@ -76,7 +76,10 @@ class SomTest:
     def __call__(self, lhs_data: pandas.DataFrame, rhs_data: pandas.DataFrame, **kwargs):
         som_name = '_'.join(lhs_data.columns) + '+' + '_'.join(rhs_data.columns)
         som_hash = md5(som_name.encode('utf-8')).hexdigest()
-        som_path = os.path.join(self.__som_output, som_hash + '.som')
+
+        som_dir = os.path.join(self.__som_output, som_hash[0:2], som_hash[2:4])
+        os.makedirs(som_dir, exist_ok=True)
+        som_path = os.path.join(som_dir, som_hash + '.som')
 
         p, som = som_test(lhs_data, rhs_data, ret_som=True, **kwargs)
 
