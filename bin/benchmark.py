@@ -70,7 +70,8 @@ class SomTest:
         self.__som_output = a.som_output
         self.__height = a.height
         os.makedirs(self.__som_output, exist_ok=True)
-        self.__index = open(os.path.join(self.__som_output, 'index.txt'), 'wt')
+        self.__index_name = os.path.join(self.__som_output, 'index.txt')
+        self.__index = open(self.__index_name, 'wt')
         return dict(size=(a.width, a.height))
 
     def __call__(self, lhs_data: pandas.DataFrame, rhs_data: pandas.DataFrame, **kwargs):
@@ -85,7 +86,10 @@ class SomTest:
 
         logger.info(f'Saving codebook {som_path}')
         np.save(som_path, som.codebook.reshape((self.__height, -1)))
-        print(som_name, '\t', som_hash, file=self.__index)
+
+        with FileLock(self.__index_name + '.lock'):
+            print(som_name, '\t', som_hash, file=self.__index)
+            self.__index.flush()
 
         return p
 
