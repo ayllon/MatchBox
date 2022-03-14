@@ -10,7 +10,8 @@ import uuid
 import warnings
 from argparse import ArgumentParser
 from functools import reduce
-from typing import List, Tuple, Set, Callable, Type, Iterable, FrozenSet
+from hashlib import md5
+from typing import List, Tuple, Set, Callable, Type, Iterable
 
 import numpy as np
 import pandas
@@ -27,13 +28,69 @@ from matchbox.find2 import Find2
 from matchbox.find_gamma import FindGamma
 from matchbox.hypergraph import generate_graph
 from matchbox.ind import Ind, unique_inds, find_max_arity_per_pair
-from matchbox.tests import knn_test
+from matchbox.tests import knn_test, som_test
 from matchbox.util.callcounter import CallCounter
 from matchbox.util.plot import to_dot_file
 from matchbox.util.timing import Timing
 from matchbox.util.loaders import load_datasets
 
 logger = logging.getLogger('benchmark')
+
+
+class KnnTest:
+    def __init__(self):
+        self.__parser = ArgumentParser()
+        self.__parser.add_argument('-k', type=int, default=3,
+                                   help='Number of neighbors for the KNN test')
+        self.__parser.add_argument('-p', '--permutations', type=int, default=500,
+                                   help='Number of permutations for the KNN test')
+
+    def args(self, args):
+        a = self.__parser.parse_args(args)
+        return dict(k=a.k, n_perm=a.permutations)
+
+    def __call__(self, *args, **kwargs):
+        return knn_test(*args, **kwargs)
+
+
+class SomTest:
+    def __init__(self):
+        self.__parser = ArgumentParser()
+        self.__parser.add_argument('--width', type=int, default=10,
+                                   help='Width of the SOM')
+        self.__parser.add_argument('--height', type=int, default=20,
+                                   help='Height of the SOM')
+        self.__parser.add_argument('--som-output', type=str, default='/tmp/som')
+        self.__som_output = None
+        self.__height = None
+        self.__index = None
+
+    def args(self, args):
+        a = self.__parser.parse_args(args)
+        self.__som_output = a.som_output
+        self.__height = a.height
+        os.makedirs(self.__som_output, exist_ok=True)
+        self.__index = open(os.path.join(self.__som_output, 'index.txt'), 'wt')
+        return dict(size=(a.width, a.height))
+
+    def __call__(self, lhs_data: pandas.DataFrame, rhs_data: pandas.DataFrame, **kwargs):
+        som_name = '_'.join(lhs_data.columns) + '+' + '_'.join(rhs_data.columns)
+        som_hash = md5(som_name.encode('utf-8')).hexdigest()
+        som_path = os.path.join(self.__som_output, som_hash + '.som')
+
+        p, som = som_test(lhs_data, rhs_data, ret_som=True, **kwargs)
+
+        logger.info(f'Saving codebook {som_path}')
+        np.save(som_path, som.codebook.reshape((self.__height, -1)))
+        print(som_name, '\t', som_hash, file=self.__index)
+
+        return p
+
+
+TEST_METHODS = {
+    'knn': KnnTest(),
+    'som': SomTest()
+}
 
 
 def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float) -> Set[Ind]:
@@ -232,10 +289,7 @@ def define_arguments() -> ArgumentParser:
                         help='Initial random seed')
     parser.add_argument('--sample-size', type=int, default=200,
                         help='Sample size')
-    parser.add_argument('-k', type=int, default=3,
-                        help='Number of neighbors for the KNN test')
-    parser.add_argument('-p', '--permutations', type=int, default=500,
-                        help='Number of permutations for the KNN test')
+    parser.add_argument('--test-method', type=str, default='knn', help='Test method')
     parser.add_argument('--uind-alpha', type=float, default=0.05,
                         help='Significance level for the unary IND tests (KS)')
     parser.add_argument('--nind-alpha', type=float, default=0.05,
@@ -269,7 +323,7 @@ def main():
     """
     # Parse arguments
     parser = define_arguments()
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
 
     # Basic setup
     log_level = logging.INFO if not args.debug else logging.DEBUG
@@ -291,8 +345,8 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Common statistical test setup
-    test_args = dict(k=args.k, n_perm=args.permutations)
-    test_method = knn_test
+    test_method = TEST_METHODS[args.test_method]
+    test_args = test_method.args(extra_args)
 
     # Load datasets
     datasets = load_datasets(args.data, ncols=args.columns)
