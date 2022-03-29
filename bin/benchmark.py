@@ -15,7 +15,7 @@ from typing import List, Tuple, Set, Callable, Type, Iterable
 
 import numpy as np
 import pandas
-from filelock import FileLock
+from fasteners import InterProcessLock
 from numpy.random import BitGenerator
 from pandas import DataFrame
 
@@ -52,6 +52,8 @@ class KnnTest:
     def __call__(self, *args, **kwargs):
         return knn_test(*args, **kwargs)
 
+    def flush(self):
+        pass
 
 class SomTest:
     def __init__(self):
@@ -63,7 +65,7 @@ class SomTest:
         self.__parser.add_argument('--som-output', type=str, default='/tmp/som')
         self.__som_output = None
         self.__height = None
-        self.__index = None
+        self.__index = dict()
 
     def args(self, args):
         a = self.__parser.parse_args(args)
@@ -71,11 +73,10 @@ class SomTest:
         self.__height = a.height
         os.makedirs(self.__som_output, exist_ok=True)
         self.__index_name = os.path.join(self.__som_output, 'index.txt')
-        self.__index = open(self.__index_name, 'wt')
         return dict(size=(a.width, a.height))
 
     def __call__(self, lhs_data: pandas.DataFrame, rhs_data: pandas.DataFrame, **kwargs):
-        som_name = '_'.join(lhs_data.columns) + '+' + '_'.join(rhs_data.columns)
+        som_name = ','.join(lhs_data.columns) + '+' + ','.join(rhs_data.columns)
         som_hash = md5(som_name.encode('utf-8')).hexdigest()
 
         som_dir = os.path.join(self.__som_output, som_hash[0:2], som_hash[2:4])
@@ -83,15 +84,21 @@ class SomTest:
         som_path = os.path.join(som_dir, som_hash + '.som')
 
         p, som = som_test(lhs_data, rhs_data, ret_som=True, **kwargs)
+        np.save(som_path, som.codebook)
 
-        logger.info(f'Saving codebook {som_path}')
-        np.save(som_path, som.codebook.reshape((self.__height, -1)))
-
-        with FileLock(self.__index_name + '.lock'):
-            print(som_name, '\t', som_hash, file=self.__index)
-            self.__index.flush()
+        self.__index[som_name] = som_path
 
         return p
+
+    def flush(self):
+        logger.info(f'Saving codebook index')
+
+        with InterProcessLock(self.__index_name + '.lock'):
+            with open(self.__index_name, 'wt') as fd:
+                for som_name, som_path in self.__index.items():
+                    print(som_path, '\t', som_name, file=fd)
+
+        self.__index.clear()
 
 
 TEST_METHODS = {
@@ -278,7 +285,7 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
 
     result = pandas.DataFrame(results)
     csv_path = os.path.join(output_dir, csv_name)
-    with FileLock(csv_path + '.lock'):
+    with InterProcessLock(csv_path + '.lock'):
         result.to_csv(csv_path, mode='a', index=False, header=not os.path.exists(csv_path))
 
 
@@ -337,7 +344,6 @@ def main():
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     logging.basicConfig(format='%(asctime)s %(name)15.15s %(levelname)s\t%(message)s',
                         level=log_level, stream=sys.stderr)
-    logging.getLogger('filelock').setLevel(logging.WARN)
 
     # Initialize the random state
     random_generator = np.random.MT19937(args.seed)
@@ -351,10 +357,6 @@ def main():
     # Create output directory if necessary
     os.makedirs(output_dir, exist_ok=True)
 
-    # Common statistical test setup
-    test_method = TEST_METHODS[args.test_method]
-    test_args = test_method.args(extra_args)
-
     # Load datasets
     datasets = load_datasets(args.data, ncols=args.columns)
 
@@ -366,6 +368,10 @@ def main():
     # but at least we avoid re-loading the datasets
     for i in range(1, args.repeat + 1):
         logger.info('Iteration %d / %d', i, args.repeat)
+
+        # Common statistical test setup
+        test_method = TEST_METHODS[args.test_method]
+        test_args = test_method.args(extra_args)
 
         # Get samples
         samples = [
@@ -383,7 +389,7 @@ def main():
         # as close as possible
         initial_ind = bootstrap_ind(
             uinds, stop=args.bootstrap_arity, alpha=min(args.bootstrap_alpha),
-            test_method=test_method, test_args=test_args
+            test_method=knn_test, test_args=dict(k=3, n_perm=500)
         )
         induced_uind = reduce(frozenset.union, map(Ind.get_all_unary, initial_ind), frozenset())
         uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, induced_uind))
@@ -430,6 +436,8 @@ def main():
                     grow=grow,
                 )
             )
+
+        test_method.flush()
 
 
 if __name__ == '__main__':
