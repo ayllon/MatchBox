@@ -9,9 +9,9 @@ dependencies:
   - python==3.8
   - scipy
   - scikit-learn
-  - filelock
   - intervaltree
   - networkx
   - jupyterlab
   - matplotlib
   - somoclu
+  - fasteners
