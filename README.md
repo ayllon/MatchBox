@@ -1,7 +1,7 @@
 MatchBox
 ========
 
-This repository contains the [implementation in Python](matchbox/) of TBD, an algorithm
+This repository contains the [implementation in Python](matchbox/) of PresQ, an algorithm
 aimed at infering common multidimensional ``equally distributed'' attributes on numerical data
 with associated uncertainties.
 
@@ -11,11 +11,11 @@ performing an approximate search of *quasi-cliques* on uniform hypergraphs.
 
 The paper/s is/are in progress.
 
-It also includes an implementation of Mind[^2] to bootstrap both Find2 and TBD.
+It also includes an implementation of Mind[^2] to bootstrap both Find2 and PresQ.
 
 ## Benchmarks
 
-[`bin/benchmark.py`](bin/benchmark.py) contains an script that can be used to benchmark Find2 and TBD.
+[`bin/benchmark.py`](bin/benchmark.py) contains an script that can be used to benchmark Find2 and PresQ.
 It supports [FITS files](https://en.wikipedia.org/wiki/FITS) - thanks to [Astropy](https://docs.astropy.org/) -,
 CSV files - thanks to [Pandas](https://pandas.pydata.org/) -, and the [Keel format](https://sci2s.ugr.es/keel/datasets.php).
 
