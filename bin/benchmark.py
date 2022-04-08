@@ -55,6 +55,7 @@ class KnnTest:
     def flush(self):
         pass
 
+
 class SomTest:
     def __init__(self):
         self.__parser = ArgumentParser()
@@ -64,13 +65,12 @@ class SomTest:
                                    help='Height of the SOM')
         self.__parser.add_argument('--som-output', type=str, default='/tmp/som')
         self.__som_output = None
-        self.__height = None
         self.__index = dict()
+        self.__index_name = None
 
     def args(self, args):
         a = self.__parser.parse_args(args)
         self.__som_output = a.som_output
-        self.__height = a.height
         os.makedirs(self.__som_output, exist_ok=True)
         self.__index_name = os.path.join(self.__som_output, 'index.txt')
         return dict(size=(a.width, a.height))
@@ -326,6 +326,7 @@ def define_arguments() -> ArgumentParser:
                         help='Do not run Find2')
     parser.add_argument('--no-grow', action='store_true',
                         help='Do not run with growing stage')
+    parser.add_argument('--only-floats', action='store_true', help='Use only floating point columns')
     parser.add_argument('--timeout', type=int, help='Timeout in seconds')
     parser.add_argument('data', metavar='DATA', nargs='+', help='Dataset')
     return parser
@@ -358,7 +359,8 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Load datasets
-    datasets = load_datasets(args.data, ncols=args.columns)
+    datasets = load_datasets(args.data, ncols=args.columns,
+                             dtypes=[np.float32, np.float64] if args.only_floats else None)
 
     # Dataset combinations, required to be deterministic between runs regardless of the result
     dataset_names = [d[0] for d in datasets]
@@ -437,7 +439,7 @@ def main():
                 )
             )
 
-        test_method.flush()
+            test_method.flush()
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ import pandas
 from pandas import DataFrame
 
 from matchbox.util.keel import parse_keel_file
+from matchbox.util.preparation import prune_columns
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,8 @@ def unambiguous_names(paths: List[str], nparents: int = 0) -> List[str]:
     return unambiguous_names(paths, nparents + 1)
 
 
-def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column') -> List[Tuple[str, DataFrame]]:
+def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column', dtypes: List = None) -> List[
+    Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
 
@@ -96,6 +98,7 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
                     df.dropna(axis=1, how='all', inplace=True)
                 if filter_nan in ['row', 'both']:
                     df.dropna(axis=0, how='any', inplace=True)
-        logger.info('\t%d columns loaded', len(df.columns))
+        prune_columns(df, dtypes)
         dataframes.append((name, df))
+        logger.info('\t%d columns loaded', len(df.columns))
     return dataframes
