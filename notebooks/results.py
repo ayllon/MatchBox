@@ -4,8 +4,11 @@ from typing import Tuple, Any, Mapping, Iterable, Union, List, Dict
 
 import numpy as np
 import pandas
+import logging
 
 notebook_dir = os.path.dirname(__file__)
+
+logger = logging.getLogger(__name__)
 
 
 def read_nind(zip: zipfile.ZipFile, run_id: str, ids: Iterable[str], out: Dict[int, List[str]]):
@@ -64,7 +67,7 @@ def load_results(run_ids: Union[List[str], str],
             pass
         for m in zip.namelist():
             filename = os.path.basename(m)
-            if filename.startswith('findg'):
+            if filename.startswith('findg') and not filename.endswith('.lock'):
                 name = os.path.splitext(filename)[0]
                 parts = name.split('_')
                 if len(parts) == 4:
@@ -83,12 +86,12 @@ def load_results(run_ids: Union[List[str], str],
                     if return_inds:
                         read_nind(zip, run_id, all_findq[key][-1]['id'], out=findq_inds[key])
                 except Exception as e:
-                    raise RuntimeError(f'Failed to parse {m}: {e}')
+                    logger.warning(f'Failed to parse {m}: {e}')
 
     if return_inds:
-        return pandas.concat(all_find2), {k: pandas.concat(v) for k, v in all_findq.items()}, find2_inds, findq_inds
+        return pandas.concat(all_find2) if all_find2 else None, {k: pandas.concat(v) for k, v in all_findq.items()}, find2_inds, findq_inds
     else:
-        return pandas.concat(all_find2), {k: pandas.concat(v) for k, v in all_findq.items()}
+        return pandas.concat(all_find2) if all_find2 else None, {k: pandas.concat(v) for k, v in all_findq.items()}
 
 
 def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
@@ -158,7 +161,10 @@ def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame]
     if findq_subset is not None:
         findq = dict([(key, findq[key]) for key in findq_subset])
 
-    rows = [['Find2', None, None] + compute_stats(find2, ('bootstrap_alpha', alpha))]
+    if find2:
+        rows = [['Find2', None, None] + compute_stats(find2, ('bootstrap_alpha', alpha))]
+    else:
+        rows = []
 
     for (lambd, gamma, grow), v in findq.items():
         rows.append(
