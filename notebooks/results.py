@@ -64,7 +64,7 @@ def load_results(run_ids: Union[List[str], str],
             pass
         for m in zip.namelist():
             filename = os.path.basename(m)
-            if filename.startswith('findg'):
+            if filename.startswith('findg') and filename.endswith('.csv'):
                 name = os.path.splitext(filename)[0]
                 parts = name.split('_')
                 if len(parts) == 4:
