@@ -10,7 +10,7 @@ import uuid
 import warnings
 from argparse import ArgumentParser
 from functools import reduce
-from typing import List, Tuple, Set, Callable, Type, Iterable, FrozenSet
+from typing import List, Tuple, Set, Callable, Type, Iterable
 
 import numpy as np
 import pandas
@@ -32,11 +32,13 @@ from matchbox.util.callcounter import CallCounter
 from matchbox.util.plot import to_dot_file
 from matchbox.util.timing import Timing
 from matchbox.util.loaders import load_datasets
+from matchbox.uintersect import UIntersectFinder
+from matchbox.gennext import gen_next
 
 logger = logging.getLogger('benchmark')
 
 
-def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float) -> Set[Ind]:
+def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_dir: str) -> Set[Ind]:
     """
     Run the unary finder n the given dataframes
 
@@ -45,26 +47,46 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float) -> Set[
     dataframes : list of dataframes
     alpha : float
         Significance level for the KS statistic
+    output_dir : str
+        Where to write the statistics to
 
     Returns
     -------
     out : set of Ind
         Set of unary IND
     """
-    from matchbox.uintersect import UIntersectFinder
+
+    uind_csv = os.path.join(output_dir, 'uind.csv')
 
     timing = Timing()
     uind_finder = UIntersectFinder(method='ks')
+    ncolumns = 0
     for df_name, df in dataframes:
         uind_finder.add(df_name, df)
+        ncolumns += len(df.columns)
     with timing:
         uinds = uind_finder(alpha=alpha, no_symmetric=True)
+
     logger.info('Number of UIND: %d', len(uinds))
     logger.info('Took %.2f seconds', timing.elapsed)
+
+    uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, uinds))
+    logger.info('%d unary IND found with matching names', len(uind_name_match))
+
+    with FileLock(uind_csv + '.lock'):
+        results = pandas.DataFrame(
+            {
+                'columns': [ncolumns], 'uinds': [len(uinds)], 'match': [len(uind_name_match)],
+                'time': [timing.elapsed]
+            }
+        )
+    results.to_csv(uind_csv, mode='a', index=False, header=not os.path.exists(uind_csv))
+
     return uinds
 
 
-def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callable, test_args: dict) -> Set[Ind]:
+def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callable, test_args: dict, output_dir: str) \
+        -> Tuple[Set[Ind], int]:
     """
     Generate and validate a set of IND of arity `stop` from a given initial set of unary IND.
     Intermediate validations are not done so the expected number of missing edges is easier to understand.
@@ -80,27 +102,49 @@ def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callabl
         Statistical test for validating the n-IND candidates
     test_args : Dictionary
         Additional set of keyword parameters to pass to the test method
+    output_dir : str
+        Where to write the statistics to
 
     Returns
     -------
     out : Set of Ind
         Validated set of n-IND
+
+    n : int
+        Number of exact name matches
     """
-    from matchbox.gennext import gen_next
+    bootstrap_csv = os.path.join(output_dir, 'bootstrap.csv')
 
-    candidates = uinds
-    for _ in range(1, stop):
-        candidates = gen_next(candidates)
+    timing = Timing()
 
-    logger.info('Number of candidate %d-IND: %d', stop, len(candidates))
-    inds = set()
-    for candidate in candidates:
-        candidate.confidence = test_method(candidate.lhs.data, candidate.rhs.data, **test_args)
-        if candidate.confidence >= alpha:
-            inds.add(candidate)
+    with timing:
+        candidates = uinds
+        for _ in range(1, stop):
+            candidates = gen_next(candidates)
+
+        logger.info('Number of candidate %d-IND: %d', stop, len(candidates))
+        inds = set()
+        for candidate in candidates:
+            candidate.confidence = test_method(candidate.lhs.data, candidate.rhs.data, **test_args)
+            if candidate.confidence >= alpha:
+                inds.add(candidate)
 
     logger.info('Number of %d-IND: %d', stop, len(inds))
-    return inds
+
+    induced_uind = list(reduce(frozenset.union, map(Ind.get_all_unary, inds), frozenset()))
+    uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, induced_uind))
+    logger.info('%d unary IND found with matching names after bootstrapping', len(uind_name_match))
+
+    with FileLock(bootstrap_csv + '.lock'):
+        results = pandas.DataFrame(
+            {
+                'candidates': [len(candidates)], 'accepted': [len(inds)],
+                'match': [len(uind_name_match)], 'time': [timing.elapsed]
+            }
+        )
+        results.to_csv(bootstrap_csv, mode='a', index=False, header=not os.path.exists(bootstrap_csv))
+
+    return inds, len(uind_name_match)
 
 
 def _timeout_handler(signum: int, stack):
@@ -318,20 +362,15 @@ def main():
 
         # Initial set of unary IND
         logger.info('Looking for unary IND')
-        uinds = generate_uind(samples, alpha=args.uind_alpha)
-        uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, uinds))
-        logger.info('%d unary IND found with matching names', len(uind_name_match))
+        uinds = generate_uind(samples, alpha=args.uind_alpha, output_dir=output_dir)
 
         # Bootstrap initial set of IND using mind
         # The individual methods can bootstrap themselves, but we want to have the initial conditions
         # as close as possible
-        initial_ind = bootstrap_ind(
+        initial_ind, exact = bootstrap_ind(
             uinds, stop=args.bootstrap_arity, alpha=min(args.bootstrap_alpha),
-            test_method=test_method, test_args=test_args
+            test_method=test_method, test_args=test_args, output_dir=output_dir
         )
-        induced_uind = reduce(frozenset.union, map(Ind.get_all_unary, initial_ind), frozenset())
-        uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, induced_uind))
-        logger.info('%d unary IND found with matching names after bootstrapping', len(uind_name_match))
 
         # Write dot file with the initial graph
         if args.write_dot:
@@ -345,7 +384,7 @@ def main():
             run_finder(
                 Find2, timeout=args.timeout, cross_datasets=cross_datasets, ncolumns=ncolumns, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
-                exact=len(uind_name_match), test_method=test_method, test_args=test_args,
+                exact=exact, test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name='find2.csv'
             )
         else:
@@ -365,7 +404,7 @@ def main():
                 FindGamma, timeout=args.timeout, ncolumns=ncolumns, cross_datasets=cross_datasets,
                 alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
-                exact=len(uind_name_match), test_method=test_method, test_args=test_args,
+                exact=exact, test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}_{grow:d}.csv',
                 # What this does it to dynamically adapt the gamma parameter to be
                 # 1 - the initial alpha (so if 0.05 of the edges are to be expected missing, gamma will be 0.95)
