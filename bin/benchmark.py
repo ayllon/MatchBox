@@ -259,6 +259,7 @@ def define_arguments() -> ArgumentParser:
     parser.add_argument('--no-grow', action='store_true',
                         help='Do not run with growing stage')
     parser.add_argument('--timeout', type=int, help='Timeout in seconds')
+    parser.add_argument('--no-column-names', action='store_true', help='The dataset has no column names')
     parser.add_argument('data', metavar='DATA', nargs='+', help='Dataset')
     return parser
 
@@ -295,7 +296,7 @@ def main():
     test_method = knn_test
 
     # Load datasets
-    datasets = load_datasets(args.data, ncols=args.columns)
+    datasets = load_datasets(args.data, ncols=args.columns, nonames=args.no_column_names)
 
     # Dataset combinations, required to be deterministic between runs regardless of the result
     dataset_names = [d[0] for d in datasets]

@@ -90,8 +90,8 @@ class Ind(object):
         return self._hash
 
     def __str__(self) -> str:
-        lhs_attr = ', '.join(self._lhs_attrs)
-        rhs_attr = ', '.join(self._rhs_attrs)
+        lhs_attr = ', '.join(map(str, self._lhs_attrs))
+        rhs_attr = ', '.join(map(str, self._rhs_attrs))
         return f'{self.lhs.relation_name}::({lhs_attr}) ⊆ {self.rhs.relation_name}::({rhs_attr})'
 
     def __repr__(self) -> str:
