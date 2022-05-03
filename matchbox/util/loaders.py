@@ -33,12 +33,21 @@ def load_csv(path: str, ncols: int) -> DataFrame:
     return pandas.read_csv(path, usecols=cols, skipinitialspace=True)
 
 
+def load_tsv(path: str, ncols: int) -> DataFrame:
+    """
+    Load a TSV file u sing pandas
+    """
+    cols = range(ncols) if ncols else None
+    return pandas.read_csv(path, usecols=cols, sep='\t', skipinitialspace=True)
+
+
 # List of supported formats and their loaders
 _loaders = {
     '.fits': load_fits,
     '.dat': parse_keel_file,
     '.csv': load_csv,
     '.data': load_csv,
+    '.tsv': load_tsv,
 }
 
 
