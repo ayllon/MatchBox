@@ -56,7 +56,6 @@ class UIntersectFinder(object):
         """
         if relation_name in self.__representativity:
             raise KeyError(f'{relation_name} already added')
-
         self.__representativity[relation_name] = len(dataset)
 
         for colname in dataset:
@@ -69,9 +68,9 @@ class UIntersectFinder(object):
 
             with pandas.option_context('mode.use_inf_as_na', True):
                 points = dataset[colname].dropna(axis=0, inplace=False)
-            min_val, max_val = points.min(), points.max()
-            if min_val >= max_val:
-                _logger.debug(f'Ignoring {colname} because it has an empty range')
+            min_val, max_val = points.min(skipna=True), points.max(skipna=True)
+            if not np.isfinite(min_val) or min_val >= max_val:
+                _logger.debug(f'Ignoring {relation_name}::{colname} because it has an empty range')
                 continue
             attr_id = AttributeSet(relation_name, colname, dataset)
             self.__tree[min_val:max_val] = (attr_id, points)

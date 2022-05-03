@@ -103,7 +103,7 @@ class AttributeSet(object):
         return self._hash
 
     def __str__(self) -> str:
-        return f'{self.__relation_name[0]}[{", ".join(map(str, self.__attr_names))}]'
+        return f'{self.__relation_name}[{", ".join(map(str, self.__attr_names))}]'
 
     def __repr__(self) -> str:
         return str(self)
