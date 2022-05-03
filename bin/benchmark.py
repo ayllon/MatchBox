@@ -107,7 +107,7 @@ def _timeout_handler(signum: int, stack):
     raise TimeoutError()
 
 
-def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]],
+def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]], ncolumns: int,
                alpha: float,
                bootstrap_arity: int, bootstrap_ind: Set[Ind], bootstrap_alphas: Iterable[float],
                exact: int, test_method: Callable, test_args: dict,
@@ -124,6 +124,8 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
         Timeout in seconds
     cross_datasets : List of dataset name pairs
         Needed to generate the output
+    ncolumns : int
+        Total number of columns
     alpha : float
         Significance level for the statistical test used to validate the n-IND candidates
     bootstrap_arity :
@@ -148,8 +150,8 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
     signal.signal(signal.SIGALRM, _timeout_handler)
 
     results = {
-        'id': [], 'exact': [], 'bootstrap_alpha': [], 'time': [], 'tests': [], 'ind': [], 'unique_ind': [],
-        'timeout': []
+        'id': [], 'columns': [], 'exact': [], 'bootstrap_alpha': [], 'time': [], 'tests': [], 'ind': [],
+        'unique_ind': [], 'timeout': []
     }
     for cd in cross_datasets:
         results[f'max_{cd[0]}_{cd[1]}'] = list()
@@ -183,6 +185,7 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
 
         run_id = str(uuid.uuid1())
         results['id'].append(run_id)
+        results['columns'].append(ncolumns)
         results['exact'].append(exact)
         results['bootstrap_alpha'].append(b_alpha)
         results['time'].append(timing.elapsed)
@@ -301,6 +304,7 @@ def main():
     # Dataset combinations, required to be deterministic between runs regardless of the result
     dataset_names = [d[0] for d in datasets]
     cross_datasets = list(map(tuple, itertools.combinations(dataset_names, 2)))
+    ncolumns = sum([len(d[1].columns) for d in datasets])
 
     # We draw different samples each time, so we need to restart from the beginning,
     # but at least we avoid re-loading the datasets
@@ -339,7 +343,7 @@ def main():
         # Benchmark find2
         if not args.no_find2:
             run_finder(
-                Find2, timeout=args.timeout, cross_datasets=cross_datasets, alpha=args.nind_alpha,
+                Find2, timeout=args.timeout, cross_datasets=cross_datasets, ncolumns=ncolumns, alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name='find2.csv'
@@ -358,7 +362,8 @@ def main():
                 continue
             logger.info('FindG lambda=%.2f, gamma=1 - %.2f * alpha, grow=%d', lambd, gamma, grow)
             run_finder(
-                FindGamma, timeout=args.timeout, cross_datasets=cross_datasets, alpha=args.nind_alpha,
+                FindGamma, timeout=args.timeout, ncolumns=ncolumns, cross_datasets=cross_datasets,
+                alpha=args.nind_alpha,
                 bootstrap_arity=args.bootstrap_arity, bootstrap_ind=initial_ind, bootstrap_alphas=args.bootstrap_alpha,
                 exact=len(uind_name_match), test_method=test_method, test_args=test_args,
                 output_dir=output_dir, csv_name=f'findg_{lambd:.2f}_{gamma:.2f}_{grow:d}.csv',
