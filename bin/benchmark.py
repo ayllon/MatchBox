@@ -244,7 +244,7 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
             if key in max_inds:
                 results[f'max_{cd[0]}_{cd[1]}'].append(max_inds[key].arity)
             else:
-                results[f'max_{cd[0]}_{cd[1]}'].append(None)
+                results[f'max_{cd[0]}_{cd[1]}'].append(0)
 
         nind_dir = os.path.join(output_dir, run_id[:2], run_id)
         os.makedirs(nind_dir)
@@ -297,6 +297,8 @@ def define_arguments() -> ArgumentParser:
                         help='Gamma factor for the number of missing edges on a quasi-clique')
     parser.add_argument('--columns', type=int, default=None,
                         help='Select a subset of the columns')
+    parser.add_argument('--files', type=int, default=None,
+                        help='Select a subset of the files, but reserve space on the output for the max arity found')
     parser.add_argument('--write-dot', action='store_true',
                         help='Write a dot file with the initial graph')
     parser.add_argument('--repeat', type=int, default=1,
@@ -343,7 +345,8 @@ def main():
     test_method = knn_test
 
     # Load datasets
-    datasets = load_datasets(args.data, ncols=args.columns, nonames=args.no_column_names)
+    skip_datasets = list(range(args.files, len(args.data))) if args.files else None
+    datasets = load_datasets(args.data, ncols=args.columns, nonames=args.no_column_names, skipdata=skip_datasets)
 
     # Dataset combinations, required to be deterministic between runs regardless of the result
     dataset_names = [d[0] for d in datasets]
@@ -357,7 +360,8 @@ def main():
 
         # Get samples
         samples = [
-            (name, df.sample(args.sample_size, replace=True, random_state=random_generator)) for name, df in datasets
+            (name, df.sample(args.sample_size, replace=True, random_state=random_generator)) for name, df in datasets if
+            len(df) > 0
         ]
 
         # Initial set of unary IND

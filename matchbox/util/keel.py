@@ -9,10 +9,11 @@ STRTYPE_TO_TYPE = dict(
 )
 
 
-def parse_keel_file(path: str, ncols: int = None):
+def parse_keel_file(path: str, ncols: int = None, nonames: bool = False):
     """
     Read a Keel datafile
     """
+    assert not nonames
     with open(path, 'rt') as fd:
         column_names = []
         column_types = {}

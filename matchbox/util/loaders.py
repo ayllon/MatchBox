@@ -78,8 +78,8 @@ def unambiguous_names(paths: List[str], nparents: int = 0) -> List[str]:
     return unambiguous_names(paths, nparents + 1)
 
 
-def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column', nonames: bool = False) -> List[
-    Tuple[str, DataFrame]]:
+def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column', nonames: bool = False,
+                  skipdata: List = None) -> List[Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
 
@@ -93,14 +93,23 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
         Remove NaN columns and rows, or both
     nonames : bool
         If True, use the column position as the column name
+    skipdata : list of integers
+        Register, but do not load, the files as these positions
 
     Returns
     -------
     out : List of tuples (name, dataframe)
     """
+    if skipdata is None:
+        skipdata = []
     dataframes = []
     names = unambiguous_names(paths)
-    for path, name in zip(paths, names):
+    for i, (path, name) in enumerate(zip(paths, names)):
+        if i in skipdata:
+            logger.info('Skipping %s', path)
+            dataframes.append((name, DataFrame()))
+            continue
+
         logger.info('Loading %s', path)
         ext = os.path.splitext(path)[1]
         df = _loaders[ext](path, ncols, nonames)
