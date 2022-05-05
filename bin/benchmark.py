@@ -14,7 +14,7 @@ from typing import List, Tuple, Set, Callable, Type, Iterable
 
 import numpy as np
 import pandas
-from filelock import FileLock
+from fasteners import InterProcessLock
 from numpy.random import BitGenerator
 from pandas import DataFrame
 
@@ -73,7 +73,7 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_
     uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, uinds))
     logger.info('%d unary IND found with matching names', len(uind_name_match))
 
-    with FileLock(uind_csv + '.lock'):
+    with InterProcessLock(uind_csv + '.lock'):
         results = pandas.DataFrame(
             {
                 'columns': [ncolumns], 'uinds': [len(uinds)], 'match': [len(uind_name_match)],
@@ -135,7 +135,7 @@ def bootstrap_ind(uinds: Set[Ind], stop: int, alpha: float, test_method: Callabl
     uind_name_match = list(filter(lambda u: u.lhs.attr_names == u.rhs.attr_names, induced_uind))
     logger.info('%d unary IND found with matching names after bootstrapping', len(uind_name_match))
 
-    with FileLock(bootstrap_csv + '.lock'):
+    with InterProcessLock(bootstrap_csv + '.lock'):
         results = pandas.DataFrame(
             {
                 'candidates': [len(candidates)], 'accepted': [len(inds)],
@@ -261,7 +261,7 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
 
     result = pandas.DataFrame(results)
     csv_path = os.path.join(output_dir, csv_name)
-    with FileLock(csv_path + '.lock'):
+    with InterProcessLock(csv_path + '.lock'):
         result.to_csv(csv_path, mode='a', index=False, header=not os.path.exists(csv_path))
 
 
