@@ -38,7 +38,7 @@ from matchbox.gennext import gen_next
 logger = logging.getLogger('benchmark')
 
 
-def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_dir: str) -> Set[Ind]:
+def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_dir: str, ncolumns: int) -> Set[Ind]:
     """
     Run the unary finder n the given dataframes
 
@@ -49,6 +49,8 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_
         Significance level for the KS statistic
     output_dir : str
         Where to write the statistics to
+    ncolumns : int
+        Number of columns present
 
     Returns
     -------
@@ -60,10 +62,8 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_
 
     timing = Timing()
     uind_finder = UIntersectFinder(method='ks')
-    ncolumns = 0
     for df_name, df in dataframes:
         uind_finder.add(df_name, df)
-        ncolumns += len(df.columns)
     with timing:
         uinds = uind_finder(alpha=alpha, no_symmetric=True)
 
@@ -365,7 +365,7 @@ def main():
 
         # Initial set of unary IND
         logger.info('Looking for unary IND')
-        uinds = generate_uind(samples, alpha=args.uind_alpha, output_dir=output_dir)
+        uinds = generate_uind(samples, alpha=args.uind_alpha, output_dir=output_dir, ncolumns=ncolumns)
 
         # Bootstrap initial set of IND using mind
         # The individual methods can bootstrap themselves, but we want to have the initial conditions
