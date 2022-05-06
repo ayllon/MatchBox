@@ -7,6 +7,7 @@ import pandas
 from pandas import DataFrame
 
 from matchbox.util.keel import parse_keel_file
+from matchbox.util.sqlite import load_sqlite
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ _loaders = {
     '.csv': load_csv,
     '.data': load_csv,
     '.tsv': load_tsv,
+    '.db': load_sqlite
 }
 
 
@@ -79,7 +81,7 @@ def unambiguous_names(paths: List[str], nparents: int = 0) -> List[str]:
 
 
 def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column', nonames: bool = False,
-                  skipdata: List = None) -> List[Tuple[str, DataFrame]]:
+                  nframes: int = None) -> List[Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
 
@@ -93,32 +95,43 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
         Remove NaN columns and rows, or both
     nonames : bool
         If True, use the column position as the column name
-    skipdata : list of integers
-        Register, but do not load, the files as these positions
+    nframes : integers
+        Only load the first nframes, the rest only register their names
 
     Returns
     -------
     out : List of tuples (name, dataframe)
     """
-    if skipdata is None:
-        skipdata = []
+    if nframes is None:
+        nframes = np.inf
     dataframes = []
     names = unambiguous_names(paths)
-    for i, (path, name) in enumerate(zip(paths, names)):
-        if i in skipdata:
+    for path, name in zip(paths, names):
+        if len(dataframes) >= nframes:
             logger.info('Skipping %s', path)
             dataframes.append((name, DataFrame()))
             continue
 
         logger.info('Loading %s', path)
         ext = os.path.splitext(path)[1]
-        df = _loaders[ext](path, ncols, nonames)
-        if filter_nan:
-            with pandas.option_context('mode.use_inf_as_na', True):
-                if filter_nan in ['column', 'both']:
-                    df.dropna(axis=1, how='all', inplace=True)
-                if filter_nan in ['row', 'both']:
-                    df.dropna(axis=0, how='any', inplace=True)
-        logger.info('\t%d columns loaded', len(df.columns))
-        dataframes.append((name, df))
+        dfs = _loaders[ext](path, ncols, nonames)
+
+        if not isinstance(dfs, list):
+            dfs = [(None, dfs)]
+
+        for nested_name, df in dfs:
+            nested_name = name + '::' + nested_name if nested_name is not None else name
+            if len(dataframes) >= nframes:
+                logger.info('Skipping %s', nested_name)
+                dataframes.append((nested_name, DataFrame()))
+                continue
+
+            if filter_nan:
+                with pandas.option_context('mode.use_inf_as_na', True):
+                    if filter_nan in ['column', 'both']:
+                        df.dropna(axis=1, how='all', inplace=True)
+                    if filter_nan in ['row', 'both']:
+                        df.dropna(axis=0, how='any', inplace=True)
+            logger.info('\t%d columns loaded from %s', len(df.columns), nested_name)
+            dataframes.append((nested_name, df))
     return dataframes

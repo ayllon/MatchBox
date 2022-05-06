@@ -345,8 +345,7 @@ def main():
     test_method = knn_test
 
     # Load datasets
-    skip_datasets = list(range(args.files, len(args.data))) if args.files else None
-    datasets = load_datasets(args.data, ncols=args.columns, nonames=args.no_column_names, skipdata=skip_datasets)
+    datasets = load_datasets(args.data, ncols=args.columns, nonames=args.no_column_names, nframes=args.files)
 
     # Dataset combinations, required to be deterministic between runs regardless of the result
     dataset_names = [d[0] for d in datasets]
