@@ -46,6 +46,7 @@ def knn_test(lhs_data: pandas.DataFrame, rhs_data: pandas.DataFrame, k: int = 5,
     tree = KDTree(points, compact_nodes=False, balanced_tree=False)
     # Permutation test
     _, idx = tree.query(points, k=k + 1)
+    np.clip(idx, 0, len(labels) - 1, out=idx)
     T0 = ((labels[idx] == labels[:, np.newaxis]).sum(axis=1) - 1).sum() / (k * N)
     Tj = np.zeros(n_perm)
     for i in range(n_perm):
