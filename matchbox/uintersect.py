@@ -103,11 +103,18 @@ class UIntersectFinder(object):
                     A_rhs[A][B] = 0
         # Intersect
         self.__ntests = 0
+        visited = set()
         for interval in progress_listener(sorted(self.__tree.all_intervals)):
             A, Av = interval.data
+            visited.add(A)
             overlapping = self.__tree.overlap(interval.begin, interval.end)
             for overlap in overlapping:
                 B, Bv = overlap.data
+
+                # Skip already tested
+                if no_symmetric and B in visited:
+                    continue
+
                 # Skip self-intersection
                 if A.relation_name == B.relation_name:
                     continue
@@ -120,7 +127,7 @@ class UIntersectFinder(object):
                     A_rhs[A][B] += 1
                     confidence[A][B] = pvalue
 
-        worst_nstest = sum(map(len, A_rhs.values()))
+        worst_nstest = (len(U) * (len(U) - 1)) // 2 if no_symmetric else sum(map(len, A_rhs.values()))
         if worst_nstest:
             savings = ((worst_nstest - self.__ntests) / worst_nstest) * 100
             _logger.info(f'{self.__ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
