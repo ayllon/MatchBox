@@ -339,6 +339,7 @@ def main():
 
     # Create output directory if necessary
     os.makedirs(output_dir, exist_ok=True)
+    sampling_csv = os.path.join(output_dir, 'sampling.csv')
 
     # Common statistical test setup
     test_args = dict(k=args.k, n_perm=args.permutations)
@@ -358,10 +359,16 @@ def main():
         logger.info('Iteration %d / %d', i, args.repeat)
 
         # Get samples
-        samples = [
-            (name, df.sample(args.sample_size, replace=True, random_state=random_generator)) for name, df in datasets if
-            len(df) > 0
-        ]
+        timing = Timing()
+        with timing:
+            samples = [
+                (name, df.sample(args.sample_size, replace=True, random_state=random_generator)) for name, df in
+                datasets if len(df) > 0
+            ]
+
+        with InterProcessLock(sampling_csv + '.lock'):
+            pandas.DataFrame({'columns': [ncolumns], 'time': [timing.elapsed]}) \
+                .to_csv(sampling_csv, mode='a', index=False, header=not os.path.exists(sampling_csv))
 
         # Initial set of unary IND
         logger.info('Looking for unary IND')
