@@ -77,7 +77,7 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_
         results = pandas.DataFrame(
             {
                 'columns': [ncolumns], 'uinds': [len(uinds)], 'match': [len(uind_name_match)],
-                'time': [timing.elapsed]
+                'time': [timing.elapsed], 'tests': uind_finder.ntests
             }
         )
     results.to_csv(uind_csv, mode='a', index=False, header=not os.path.exists(uind_csv))

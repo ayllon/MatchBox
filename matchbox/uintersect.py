@@ -34,6 +34,7 @@ class UIntersectFinder(object):
             self.__method = self._ks
         else:
             raise ValueError(f'Unknown method {method}')
+        self.__ntests = 0
 
     def _ks(self, x_a, x_b):
         """
@@ -59,12 +60,7 @@ class UIntersectFinder(object):
         self.__representativity[relation_name] = len(dataset)
 
         for colname in dataset:
-            if not np.issubdtype(dataset[colname].dtype, np.number):
-                _logger.debug(f'Ignoring {colname} because it is not numerical')
-                continue
-            if np.issubdtype(dataset[colname].dtype, np.integer) and len(np.unique(dataset[colname])) < 10:
-                _logger.debug(f'Ignoring {colname} because it is an integer with less than 10 values')
-                continue
+            assert np.issubdtype(dataset[colname].dtype, np.number), f'{colname}: {dataset[colname].dtype}'
 
             with pandas.option_context('mode.use_inf_as_na', True):
                 points = dataset[colname].dropna(axis=0, inplace=False)
@@ -106,7 +102,7 @@ class UIntersectFinder(object):
                 if A.relation_name != B.relation_name:
                     A_rhs[A][B] = 0
         # Intersect
-        ntests = 0
+        self.__ntests = 0
         for interval in progress_listener(sorted(self.__tree.all_intervals)):
             A, Av = interval.data
             overlapping = self.__tree.overlap(interval.begin, interval.end)
@@ -116,7 +112,7 @@ class UIntersectFinder(object):
                 if A.relation_name == B.relation_name:
                     continue
 
-                ntests += 1
+                self.__ntests += 1
                 pvalue = self.__method(Av, Bv)
                 if pvalue < alpha:
                     _logger.debug(f'Statistic check discards {A} ⊆ {B}')
@@ -126,8 +122,8 @@ class UIntersectFinder(object):
 
         worst_nstest = sum(map(len, A_rhs.values()))
         if worst_nstest:
-            savings = ((worst_nstest - ntests) / worst_nstest) * 100
-            _logger.info(f'{ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
+            savings = ((worst_nstest - self.__ntests) / worst_nstest) * 100
+            _logger.info(f'{self.__ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
         # Find those within the threshold
         AI = set()
         for A in sorted(U):
@@ -135,3 +131,12 @@ class UIntersectFinder(object):
                 if nab and (not no_symmetric or Ind(B, A) not in AI):
                     AI.add(Ind(A, B, confidence[A][B]))
         return frozenset(AI)
+
+    @property
+    def ntests(self):
+        """
+        Returns
+        -------
+        The number of tests actually performed
+        """
+        return self.__ntests

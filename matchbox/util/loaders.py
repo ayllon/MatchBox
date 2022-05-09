@@ -126,6 +126,14 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
                 dataframes.append((nested_name, DataFrame()))
                 continue
 
+            for column in list(df.columns):
+                if not np.issubdtype(df.dtypes[column], np.number):
+                    logger.debug(f'Ignoring {column} because it is not numerical')
+                    del df[column]
+                elif np.issubdtype(df.dtypes[column], np.integer) and len(df[column].unique()) < 10:
+                    logger.debug(f'Ignoring {column} because it is an integer with less than 10 values')
+                    del df[column]
+
             if filter_nan:
                 with pandas.option_context('mode.use_inf_as_na', True):
                     if filter_nan in ['column', 'both']:
