@@ -81,7 +81,7 @@ def unambiguous_names(paths: List[str], nparents: int = 0) -> List[str]:
 
 
 def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column', nonames: bool = False,
-                  nframes: int = None) -> List[Tuple[str, DataFrame]]:
+                  nframes: int = None, limit_int_unique: int = 2) -> List[Tuple[str, DataFrame]]:
     """
     Load a list of datasets from files
 
@@ -95,8 +95,10 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
         Remove NaN columns and rows, or both
     nonames : bool
         If True, use the column position as the column name
-    nframes : integers
+    nframes : integer
         Only load the first nframes, the rest only register their names
+    limit_int_unique : integer
+        Drop integer columns if they have less that this many values
 
     Returns
     -------
@@ -130,8 +132,8 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
                 if not np.issubdtype(df.dtypes[column], np.number):
                     logger.debug(f'Ignoring {column} because it is not numerical')
                     del df[column]
-                elif np.issubdtype(df.dtypes[column], np.integer) and len(df[column].unique()) < 10:
-                    logger.debug(f'Ignoring {column} because it is an integer with less than 10 values')
+                elif np.issubdtype(df.dtypes[column], np.integer) and len(df[column].unique()) < limit_int_unique:
+                    logger.debug(f'Ignoring {column} because it is an integer with less than {limit_int_unique} values')
                     del df[column]
 
             if filter_nan:
