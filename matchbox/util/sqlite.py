@@ -62,13 +62,13 @@ class DbAdapter:
         self.__columns.remove(key)
 
     def sample(self, sample_size: int, replace: bool, random_state: BitGenerator):
-        logger.info('Sampling %d from %s', sample_size, self.__table)
+        logger.debug('Sampling %d from %s', sample_size, self.__table)
         timing = Timing()
         with timing:
             cutout = -9223372036854775808 + np.ceil((sample_size * 1.5 / self.__len) * 18446744073709551615)
             df = pandas.read_sql_query(f'SELECT {",".join(self.__columns)} FROM {self.__table} WHERE RANDOM() <= ?',
                                        self.__sqlite, params=(cutout,))
-        logger.info('Done in %.2f seconds (%d)', timing.elapsed, len(df))
+        logger.debug('Done in %.2f seconds (%d)', timing.elapsed, len(df))
         if self.__dropna[0]:
             df.dropna(axis=0, how=self.__dropna[0], inplace=True)
         if self.__dropna[1]:

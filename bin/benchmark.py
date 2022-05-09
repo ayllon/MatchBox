@@ -65,7 +65,7 @@ def generate_uind(dataframes: List[Tuple[str, DataFrame]], alpha: float, output_
     for df_name, df in dataframes:
         uind_finder.add(df_name, df)
     with timing:
-        uinds = uind_finder(alpha=alpha, no_symmetric=True)
+        uinds = uind_finder(alpha=alpha)
 
     logger.info('Number of UIND: %d', len(uinds))
     logger.info('Took %.2f seconds', timing.elapsed)
