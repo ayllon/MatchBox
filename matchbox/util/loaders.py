@@ -140,6 +140,11 @@ def load_datasets(paths: List[str], ncols: int = None, filter_nan: str = 'column
                         df.dropna(axis=1, how='all', inplace=True)
                     if filter_nan in ['row', 'both']:
                         df.dropna(axis=0, how='any', inplace=True)
+
+            if len(df.columns) == 0:
+                logger.debug(f'Skipping {nested_name} because it has no columns left')
+                continue
+
             logger.info('\t%d columns loaded from %s', len(df.columns), nested_name)
             dataframes.append((nested_name, df))
     return dataframes
