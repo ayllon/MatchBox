@@ -177,7 +177,9 @@ def reduce_graph(G: Graph) -> Tuple[Graph, Graph]:
     # on G1 is not the number of vertex on the original graph
     while len(G1.V) == len(G.V):
         edges = list(G.E)
-        prob = [1 - e.confidence for e in edges]
+        prob = np.array([1 - e.confidence for e in edges])
+        if np.all(prob == 0):
+            prob[:] = 1.
         prob /= np.sum(prob)
         e = np.random.choice(edges, p=prob)
         S = generate_clique_candidate(G, e)
