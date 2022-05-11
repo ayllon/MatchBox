@@ -72,7 +72,7 @@ class UIntersectFinder(object):
             self.__tree[min_val:max_val] = (attr_id, points)
 
     # noinspection PyPep8Naming
-    def __call__(self, alpha=0.05, symmetric=True, progress_listener=NoopListener):
+    def __call__(self, alpha=0.05, no_symmetric=False, progress_listener=NoopListener):
         """
         Run the modified algorithm over the interval tree
 
@@ -80,6 +80,8 @@ class UIntersectFinder(object):
         ----------
         alpha : float
             Rejection level for the statistical test
+        no_symmetric : bool
+            If True, A ⊆ B will be included, but *not* B ⊆ A
         progress_listener : type
             An iterable type that can be constructed receiving another iterator. It can be used to report
             progress back to the user (i.e. tqdm)
@@ -112,7 +114,7 @@ class UIntersectFinder(object):
                 B, Bv = overlap.data
 
                 # Skip already tested
-                if symmetric and B in visited:
+                if B in visited:
                     continue
 
                 # Skip self-intersection
@@ -126,18 +128,17 @@ class UIntersectFinder(object):
                 else:
                     A_rhs[A][B] += 1
                     confidence[A][B] = pvalue
-                    if symmetric:
-                        A_rhs[B][A] += 1
-                        confidence[B][A] = pvalue
+                    A_rhs[B][A] += 1
+                    confidence[B][A] = pvalue
 
-        worst_nstest = (len(U) * (len(U) - 1)) // 2 if symmetric else (len(U) * (len(U) - 1))
+        worst_nstest = (len(U) * (len(U) - 1)) // 2
         savings = ((worst_nstest - self.__ntests) / worst_nstest) * 100
         _logger.info(f'{self.__ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
         # Find those within the threshold
         AI = set()
         for A in sorted(U):
             for B, nab in A_rhs[A].items():
-                if nab:
+                if nab and Ind(B, A) not in AI:
                     AI.add(Ind(A, B, confidence[A][B]))
         return frozenset(AI)
 
