@@ -220,7 +220,8 @@ def run_finder(Finder: Type, timeout: int, cross_datasets: List[Tuple[str, str]]
                     signal.alarm(timeout)
                 nind = finder(selected_ind)
                 signal.alarm(0)
-            except TimeoutError:
+            # If the timeout is triggered inside scipy.stats, we get a type error :/ 
+            except (TimeoutError, TypeError):
                 logger.warning('Measurement timeout')
                 nind = set()
                 timeout_flag = True
