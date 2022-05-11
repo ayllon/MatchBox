@@ -138,7 +138,7 @@ class UIntersectFinder(object):
         AI = set()
         for A in sorted(U):
             for B, nab in A_rhs[A].items():
-                if nab and Ind(B, A) not in AI:
+                if nab and (not no_symmetric or Ind(B, A) not in AI):
                     AI.add(Ind(A, B, confidence[A][B]))
         return frozenset(AI)
 
