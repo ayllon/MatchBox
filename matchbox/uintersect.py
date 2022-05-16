@@ -35,6 +35,7 @@ class UIntersectFinder(object):
         else:
             raise ValueError(f'Unknown method {method}')
         self.__ntests = 0
+        self.__possible_tests = 0
 
     def _ks(self, x_a, x_b):
         """
@@ -103,6 +104,7 @@ class UIntersectFinder(object):
             for B in U:
                 if A.relation_name != B.relation_name:
                     A_rhs[A][B] = 0
+                    self.__possible_tests += 1
         # Intersect
         self.__ntests = 0
         visited = set()
@@ -131,7 +133,7 @@ class UIntersectFinder(object):
                     A_rhs[B][A] += 1
                     confidence[B][A] = pvalue
 
-        worst_nstest = (len(U) * (len(U) - 1)) // 2
+        worst_nstest = self.__possible_tests / 2
         savings = ((worst_nstest - self.__ntests) / worst_nstest) * 100
         _logger.info(f'{self.__ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
         # Find those within the threshold
