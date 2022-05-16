@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import itertools
 import logging
 import os
 import sys
@@ -10,7 +11,6 @@ from typing import List, Tuple, Dict
 import numpy as np
 import pandas
 from pandas import DataFrame
-
 
 try:
     import matchbox
@@ -48,11 +48,13 @@ def uind_histogram(dataframes: List[Tuple[str, DataFrame]], alphas: List[float])
     for df_name, df in dataframes:
         uind_finder.add(df_name, df)
     uinds = uind_finder(alpha=min(alphas), no_symmetric=True)
-    logger.info('Computing histograms')
+    logger.info(f'Computing histograms for {len(uinds)} UINDs')
     histograms = {}
     for a in alphas:
         uind_subset = [u for u in uinds if u.confidence >= a]
-        matches = {c: 0 for c in dataframes[0][1].columns}
+        matches = {}
+        for df in dataframes:
+            matches.update({c: 0 for c in df[1].columns})
         for u in uind_subset:
             c = u.lhs.attr_names[0]
             matches[c] += 1
@@ -78,8 +80,8 @@ def main():
     parser.add_argument('--sample-size', type=int, default=200, help='Sample size')
     parser.add_argument('--uind-alphas', type=float, nargs='+', default=[0.05, 0.1],
                         help='Significance level for the unary IND tests')
-    parser.add_argument('data1', metavar='DATA1', help='Dataset 1')
-    parser.add_argument('data2', metavar='DATA2', help='Dataset 2')
+    parser.add_argument('--no-column-names', action='store_true', help='The dataset has no column names')
+    parser.add_argument('data', nargs='+', metavar='DATA1', help='Datasets')
     args = parser.parse_args()
 
     # Logging
@@ -91,12 +93,16 @@ def main():
 
     # Load dataset
     logging.info('Loading datasets')
-    datasets = load_datasets([args.data1, args.data2])
+    datasets = load_datasets(args.data, nonames=args.no_column_names)
 
     # Display general summary
     print('Rows:', ' + '.join([str(len(df)) for _, df in datasets]))
     print('Columns:', ' + '.join([str(len(df.columns)) for _, df in datasets]))
-    print('Max. IND:', max_ind_by_name(datasets[0][1], datasets[1][1]))
+    max_inds = []
+    for df1, df2 in itertools.combinations(datasets, 2):
+        max_inds.append(max_ind_by_name(df1[1], df2[1]))
+    print('Max. IND:', max(max_inds))
+    print('Total IND:', sum(max_inds))
 
     # Select samples
     logger.info('Using %d samples', args.sample_size)
