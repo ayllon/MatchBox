@@ -123,7 +123,7 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
     masked = data[mask]
 
     if not len(masked):
-        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, count, count]
+        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, count, 1.]
 
     match = (masked[max_ind_column] / masked['exact'])
     time_qs = np.quantile(masked['time'], [0.25, 0.75])
@@ -210,4 +210,4 @@ def pretty_highest_ind(inds: Dict[int, List[str]], topn: int = 1, max_ind: int =
         df = pandas.DataFrame(tab, columns=[lds, rds])
         df.sort_values(by=0, axis='columns', inplace=True)
         dfs.append(df)
-    return dfs if topn > 1 else dfs[0]
+    return dfs if topn > 1 else (dfs[0] if dfs else None)
