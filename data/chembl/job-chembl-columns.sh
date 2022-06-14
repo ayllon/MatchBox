@@ -15,11 +15,10 @@ set -x
 MATCHDIR="${HOME}/MatchBox"
 ID="chembl_$(date +%Y%m%d)"
 mkdir -p "${MATCHDIR}/results/$ID"
-
-for i in {82..160..3}; do
+for i in {82..160..6}; do
     "${MATCHDIR}/bin/benchmark.py" --id "${ID}" \
         --output-dir "${MATCHDIR}/results/" \
-        --lambdas 0.05 \
+        --lambdas 0.1 \
         --bootstrap-alpha 0.05 \
         --no-find2 \
         --repeat 10 \

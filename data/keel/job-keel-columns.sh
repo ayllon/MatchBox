@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=alejandro.alvarezayllon@unige.ch
-#SBATCH --ntasks=8
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 
 set -e
 
@@ -13,17 +13,18 @@ conda activate matchbox
 set -x
 
 MATCHDIR="${HOME}/MatchBox"
-ID="dc2_$(date +%Y%m%d)"
+ID="incremental_$(date +%Y%m%d)"
 mkdir -p "${MATCHDIR}/results/$ID"
 
-for i in $(seq 1 $SLURM_NTASKS); do
-    srun --exclusive -N1 -n1 "${MATCHDIR}/bin/benchmark.py" \
-        --id "${ID}" \
-        --repeat 1000 \
-        --timeout 3000 \
+for i in {29..31}; do
+    "${MATCHDIR}/bin/benchmark.py" --id "${ID}" \
         --output-dir "${MATCHDIR}/results/" \
-        "${MATCHDIR}/data/dc2/"*.fits &> "${MATCHDIR}/results/$ID/run.${i}.log" &
+        --lambdas 0.05 \
+        --bootstrap-alpha 0.1 \
+        --no-find2 \
+        --repeat 10 \
+        --files $i \
+        --timeout 3000 \
+        ${MATCHDIR}/data/keel/*/*.dat
 done
-
-wait
 

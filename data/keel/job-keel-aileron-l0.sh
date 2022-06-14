@@ -13,7 +13,7 @@ conda activate matchbox
 set -x
 
 MATCHDIR="${HOME}/MatchBox"
-ID="mortgage_$(date +%Y%m%d)"
+ID="ailerons_l0_$(date +%Y%m%d)"
 mkdir -p "${MATCHDIR}/results/$ID"
 
 for i in $(seq 1 $SLURM_NTASKS); do
@@ -21,8 +21,11 @@ for i in $(seq 1 $SLURM_NTASKS); do
         --id "${ID}" \
         --repeat 1000 \
         --timeout 3000 \
+        --bootstrap-alpha 0.1 \
+        --lambdas 0 \
+        --gammas 1 \
         --output-dir "${MATCHDIR}/results/" \
-        "${MATCHDIR}/data/keel/mortgage/mortgage.dat" "${MATCHDIR}/data/keel/treasury/treasury.dat" &> "${MATCHDIR}/results/$ID/run.${i}.log" &
+        "${MATCHDIR}/data/keel/ailerons/ailerons.dat" "${MATCHDIR}/data/keel/elevators/elevators.dat" &> "${MATCHDIR}/results/$ID/run.${i}.log" &
 done
 
 wait
