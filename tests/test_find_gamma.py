@@ -44,41 +44,37 @@ def test_find_hypercliques(hyperclique48):
     """
     gamma = 1., so it must be strictly equivalent to is_clique
     """
-    cliques = list(find_quasicliques(hyperclique48, lambd=0., gamma=1.))
+    cliques = list(find_quasicliques(hyperclique48, lambd=0., gamma=1., grow=False))
     assert 3 == len(cliques)
     assert Edge({1, 2, 5}) in cliques
     assert Edge({3, 4, 5}) in cliques
     assert Edge({1, 2, 3, 4}) in cliques
 
 
-def test_grow_quasi(quasi_clique_grow):
+def test_grow_quasi(hyperclique48):
     """
     Test only the grow_clique function, which must take a known clique
     and grow applying Uno algorithm
     """
-    cliques = grow_clique(quasi_clique_grow, {1, 2}, gamma=0.6)
-    assert 2 == len(cliques)
+    cliques = grow_clique(hyperclique48, {1, 2}, gamma=0.6, Lambda=0.01)
     assert {1, 2, 3, 4} in cliques
 
-    cliques = grow_clique(quasi_clique_grow, {2, 3}, gamma=0.6)
-    assert 2 == len(cliques)
+    cliques = grow_clique(hyperclique48, {2, 3}, gamma=0.6, Lambda=0.01)
     assert {1, 2, 3, 4} in cliques
 
-    cliques = grow_clique(quasi_clique_grow, {3, 4}, gamma=0.6)
-    assert 2 == len(cliques)
+    cliques = grow_clique(hyperclique48, {3, 4}, gamma=0.6, Lambda=0.01)
     assert {1, 2, 3, 4} in cliques
 
-    cliques = grow_clique(quasi_clique_grow, {4, 1}, gamma=0.6)
-    assert 2 == len(cliques)
+    cliques = grow_clique(hyperclique48, {4, 1}, gamma=0.6, Lambda=0.01)
     assert {1, 2, 3, 4} in cliques
 
 
-def test_find_quasi_grow(quasi_clique_grow):
+def test_find_quasi_grow(hyperclique48):
     """
     The modified HYPERCLIQUE is not able to find a 0.6/0.6 quasiclique
     since there are no edges connecting two nodes connected to all other nodes.
     Applying the modified Uno's algorithm must grow the first candidate and find the full quasiclique
     """
-    cliques = list(find_quasicliques(quasi_clique_grow, lambd=0.1, gamma=0.6))
+    cliques = list(find_quasicliques(hyperclique48, lambd=0.01, gamma=0.6, grow=True))
     assert 1 == len(cliques)
-    assert Edge({1, 2, 3, 4}) in cliques
+    assert Edge({1, 2, 3, 4, 5}) in cliques

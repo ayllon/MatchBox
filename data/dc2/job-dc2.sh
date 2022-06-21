@@ -20,6 +20,7 @@ for i in $(seq 1 $SLURM_NTASKS); do
     srun --exclusive -N1 -n1 "${MATCHDIR}/bin/benchmark.py" \
         --id "${ID}" \
         --repeat 1000 \
+        --timeout 3000 \
         --output-dir "${MATCHDIR}/results/" \
         "${MATCHDIR}/data/dc2/"*.fits &> "${MATCHDIR}/results/$ID/run.${i}.log" &
 done

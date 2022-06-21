@@ -64,7 +64,7 @@ def load_results(run_ids: Union[List[str], str],
             pass
         for m in zip.namelist():
             filename = os.path.basename(m)
-            if filename.startswith('findg'):
+            if filename.startswith('findg') and filename.endswith('.csv'):
                 name = os.path.splitext(filename)[0]
                 parts = name.split('_')
                 if len(parts) == 4:
@@ -118,11 +118,12 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
             max_ind_column = c
 
     timeouts = data[(data[filter_by[0]] == filter_by[1])]['timeout']
+    count = len(timeouts)
     mask = (data[filter_by[0]] == filter_by[1]) & (data['exact'] > 0) & (data['ind'] > 0)
     masked = data[mask]
 
     if not len(masked):
-        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, timeouts.sum()]
+        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, count, 1.]
 
     match = (masked[max_ind_column] / masked['exact'])
     time_qs = np.quantile(masked['time'], [0.25, 0.75])
@@ -131,7 +132,8 @@ def compute_stats(data: pandas.DataFrame, filter_by: Tuple[str, Any]):
     precision = (masked['ind'] / masked['tests']).mean()
     overhead = (masked['tests'] / masked['unique_ind']).mean()
 
-    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [precision, overhead, mask.sum(), timeouts.sum()/len(timeouts)]
+    return time_qs.tolist() + match_qs.tolist() + nind_qs.tolist() + [precision, overhead, count,
+                                                                      timeouts.sum() / count]
 
 
 def general_stats(find2: pandas.DataFrame, findq: Mapping[Any, pandas.DataFrame], findq_subset: Iterable = None,
@@ -208,4 +210,4 @@ def pretty_highest_ind(inds: Dict[int, List[str]], topn: int = 1, max_ind: int =
         df = pandas.DataFrame(tab, columns=[lds, rds])
         df.sort_values(by=0, axis='columns', inplace=True)
         dfs.append(df)
-    return dfs if topn > 1 else dfs[0]
+    return dfs if topn > 1 else (dfs[0] if dfs else None)

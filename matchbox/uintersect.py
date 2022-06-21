@@ -34,6 +34,8 @@ class UIntersectFinder(object):
             self.__method = self._ks
         else:
             raise ValueError(f'Unknown method {method}')
+        self.__ntests = 0
+        self.__possible_tests = 0
 
     def _ks(self, x_a, x_b):
         """
@@ -56,22 +58,16 @@ class UIntersectFinder(object):
         """
         if relation_name in self.__representativity:
             raise KeyError(f'{relation_name} already added')
-
         self.__representativity[relation_name] = len(dataset)
 
         for colname in dataset:
-            if not np.issubdtype(dataset[colname].dtype, np.number):
-                _logger.debug(f'Ignoring {colname} because it is not numerical')
-                continue
-            if np.issubdtype(dataset[colname].dtype, np.integer) and len(np.unique(dataset[colname])) < 10:
-                _logger.debug(f'Ignoring {colname} because it is an integer with less than 10 values')
-                continue
+            assert np.issubdtype(dataset[colname].dtype, np.number), f'{colname}: {dataset[colname].dtype}'
 
             with pandas.option_context('mode.use_inf_as_na', True):
                 points = dataset[colname].dropna(axis=0, inplace=False)
-            min_val, max_val = points.min(), points.max()
-            if min_val >= max_val:
-                _logger.debug(f'Ignoring {colname} because it has an empty range')
+            min_val, max_val = points.min(skipna=True), points.max(skipna=True)
+            if not np.isfinite(min_val) or min_val >= max_val:
+                _logger.debug(f'Ignoring {relation_name}::{colname} because it has an empty range')
                 continue
             attr_id = AttributeSet(relation_name, colname, dataset)
             self.__tree[min_val:max_val] = (attr_id, points)
@@ -85,6 +81,8 @@ class UIntersectFinder(object):
         ----------
         alpha : float
             Rejection level for the statistical test
+        no_symmetric : bool
+            If True, A ⊆ B will be included, but *not* B ⊆ A
         progress_listener : type
             An iterable type that can be constructed receiving another iterator. It can be used to report
             progress back to the user (i.e. tqdm)
@@ -106,29 +104,38 @@ class UIntersectFinder(object):
             for B in U:
                 if A.relation_name != B.relation_name:
                     A_rhs[A][B] = 0
+                    self.__possible_tests += 1
         # Intersect
-        ntests = 0
+        self.__ntests = 0
+        visited = set()
         for interval in progress_listener(sorted(self.__tree.all_intervals)):
             A, Av = interval.data
+            visited.add(A)
             overlapping = self.__tree.overlap(interval.begin, interval.end)
             for overlap in overlapping:
                 B, Bv = overlap.data
+
+                # Skip already tested
+                if B in visited:
+                    continue
+
                 # Skip self-intersection
                 if A.relation_name == B.relation_name:
                     continue
 
-                ntests += 1
+                self.__ntests += 1
                 pvalue = self.__method(Av, Bv)
                 if pvalue < alpha:
                     _logger.debug(f'Statistic check discards {A} ⊆ {B}')
                 else:
                     A_rhs[A][B] += 1
                     confidence[A][B] = pvalue
+                    A_rhs[B][A] += 1
+                    confidence[B][A] = pvalue
 
-        worst_nstest = sum(map(len, A_rhs.values()))
-        if worst_nstest:
-            savings = ((worst_nstest - ntests) / worst_nstest) * 100
-            _logger.info(f'{ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
+        worst_nstest = self.__possible_tests / 2
+        savings = ((worst_nstest - self.__ntests) / worst_nstest) * 100
+        _logger.info(f'{self.__ntests} statistical tests done ({worst_nstest} worst case, saved {savings:.2f}%)')
         # Find those within the threshold
         AI = set()
         for A in sorted(U):
@@ -136,3 +143,12 @@ class UIntersectFinder(object):
                 if nab and (not no_symmetric or Ind(B, A) not in AI):
                     AI.add(Ind(A, B, confidence[A][B]))
         return frozenset(AI)
+
+    @property
+    def ntests(self):
+        """
+        Returns
+        -------
+        The number of tests actually performed
+        """
+        return self.__ntests
