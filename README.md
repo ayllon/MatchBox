@@ -1,4 +1,4 @@
-MatchBox
+MatchBox [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6865856.svg)](https://doi.org/10.5281/zenodo.6865856)
 ========
 
 This repository contains the [implementation in Python](matchbox/) of PresQ, an algorithm
