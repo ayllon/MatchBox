@@ -9,7 +9,7 @@ Is is based on on Find2[^1], but it accounts for the the effect that statistical
 reject or accept that two multidimensional set of attributes are equally distributed) by
 performing an approximate search of *quasi-cliques* on uniform hypergraphs.
 
-The paper/s is/are in progress.
+The paper [has been accepted](https://doi.org/10.1109/TETC.2022.3198252).
 
 It also includes an implementation of Mind[^2] to bootstrap both Find2 and PresQ.
 
