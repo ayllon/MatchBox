@@ -12,7 +12,7 @@ from typing import Tuple, FrozenSet, Callable, Union, List
 
 import numpy as np
 import pandas
-from filelock import FileLock
+from fasteners import InterProcessLock
 
 try:
     import matchbox
@@ -240,7 +240,7 @@ def main():
 
         # Write
         if args.output:
-            with FileLock(args.output + '.lock'):
+            with InterProcessLock(args.output + '.lock'):
                 pandas.DataFrame(df).to_csv(args.output, mode='a', header=not os.path.exists(args.output))
         else:
             pandas.DataFrame(df).to_csv(sys.stdout, mode='a', header=True)
