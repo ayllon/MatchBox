@@ -73,6 +73,9 @@ are not included. In any case they are open and easy to obtain.
 Under [`notebooks/`](notebooks/) there are notebooks and some statistics about past runs.
 These notebooks should be easy to re-use with the output of `bin/benchmark.py` compressed as `tar.gz` files.
 
+## About the project funding
+
+This research & development is part of the project CRÊPES (ref. PID2020-115844RB-I00), funded by MCIN/AEI/10.13039/501100011033/.
 
 [^1]: A. Koeller and E. A. Rundensteiner, “Discovery of high-dimensional inclusion dependencies,” in Proceedings 19th international conference on data engineering (cat. No. 03CH37405), 2003, pp. 683–685,
 doi: [10.1109/ICDE.2003.1260834](https://doi.org/10.1109/ICDE.2003.1260834).
